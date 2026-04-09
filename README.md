@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="panel/public/icons/icon-192.png" width="96" alt="TonbilTerm Logo"/>
+  <img src="logo/tonbilterm-logo.png" width="200" alt="TonbilTerm Logo"/>
 </p>
 
 <h1 align="center">TonbilTerm</h1>
@@ -357,7 +357,7 @@ This project is licensed under the MIT License — see the [LICENSE](LICENSE) fi
 <a name="turkce"></a>
 
 <p align="center">
-  <img src="panel/public/icons/icon-192.png" width="96" alt="TonbilTerm Logo"/>
+  <img src="logo/tonbilterm-logo.png" width="200" alt="TonbilTerm Logo"/>
 </p>
 
 <h1 align="center">TonbilTerm</h1>
