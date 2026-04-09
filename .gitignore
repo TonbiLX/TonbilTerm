@@ -1,0 +1,57 @@
+# === Build Artifacts ===
+firmware/*/.pio/
+firmware/*/build/
+panel/.next/
+panel/out/
+panel/node_modules/
+app/.gradle/
+app/.kotlin/
+app/app/build/
+app/build/
+server/api/__pycache__/
+
+# === Dependencies ===
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+
+# === IDE ===
+.vscode/
+.idea/
+*.iml
+
+# === OS ===
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# === Environment & Secrets ===
+.env
+.env.*
+*.local
+app/local.properties
+app/keystore.properties
+app/*.jks
+
+# === Firmware build ===
+*.o
+*.elf
+*.bin
+
+# === Docker volumes (local dev) ===
+server/mosquitto/data/
+server/mosquitto/log/
+
+# === Planning (internal dev artifacts) ===
+.planning/
+
+# === Temporary ===
+*.tar.gz
+*.log
+output/
+screenshot/take_screenshots.py
+
+# Personal/temporary
+docs/
+bug-screen/

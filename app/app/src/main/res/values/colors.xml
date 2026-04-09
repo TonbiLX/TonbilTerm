@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="tonbil_background">#FF1C1B1F</color>
+    <color name="tonbil_surface">#FF2B2930</color>
+    <color name="tonbil_primary">#FFFFB68C</color>
+    <color name="tonbil_on_primary">#FF4A2800</color>
+    <color name="tonbil_on_surface">#FFE6E1E5</color>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+</resources>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Thermostat icon -->
+    <path
+        android:fillColor="#FFB68C"
+        android:pathData="M54,24C47.37,24 42,29.37 42,36L42,60C38.13,63.14 36,67.42 36,72C36,81.94 44.06,90 54,90C63.94,90 72,81.94 72,72C72,67.42 69.87,63.14 66,60L66,36C66,29.37 60.63,24 54,24ZM54,30C57.31,30 60,32.69 60,36L60,48L48,48L48,36C48,32.69 50.69,30 54,30ZM54,84C47.37,84 42,78.63 42,72C42,68.87 43.42,65.98 45.69,63.98L48,62.02L48,54L60,54L60,62.02L62.31,63.98C64.58,65.98 66,68.87 66,72C66,78.63 60.63,84 54,84Z" />
+    <path
+        android:fillColor="#FF6B6B"
+        android:pathData="M54,60C49.58,60 46,63.58 46,68C46,72.42 49.58,76 54,76C58.42,76 62,72.42 62,68C62,63.58 58.42,60 54,60Z" />
+</vector>

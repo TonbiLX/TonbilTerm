@@ -1,0 +1,3088 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>TonbilTerm | Akilli Termostat</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+<style>
+/* ===== RESET & TOKENS ===== */
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#1C1B1F;--surface:#2B2930;--surface2:#363340;--surface3:#49454F;
+  --primary:#FFB68C;--primary-dim:rgba(255,182,140,0.15);
+  --on-primary:#4A2800;--on-surface:#E6E1E5;--on-surface-var:#CAC4D0;
+  --error:#F2B8B5;--error-bg:rgba(242,184,181,0.12);
+  --success:#A8DAB5;--success-bg:rgba(168,218,181,0.12);
+  --info:#8CB4FF;--info-bg:rgba(140,180,255,0.12);
+  --outline:#938F99;--outline-var:#49454F;
+  --radius:16px;--radius-sm:12px;--radius-xs:8px;
+  --shadow:0 2px 8px rgba(0,0,0,0.3);
+  --shadow-lg:0 8px 24px rgba(0,0,0,0.4);
+  --transition:0.2s cubic-bezier(0.4,0,0.2,1);
+  --nav-height:64px;
+  --appbar-height:56px;
+}
+html{font-size:16px;-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}
+body{
+  font-family:Roboto,sans-serif;background:var(--bg);color:var(--on-surface);
+  min-height:100vh;min-height:100dvh;overflow-x:hidden;
+}
+/* Mobilde buton text selection engelle */
+button,.btn,.chip,.nav-item,.toggle,.room-card,.device-item,.status-card,.mode-chips>div,.schedule-entry{
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
+}
+/* Buton tiklama feedback - ripple efekti */
+button:active,.btn:active,.chip:active,.nav-item:active,.room-card:active,.status-card:active{
+  transform:scale(0.96);opacity:0.85;
+}
+.btn,.chip,.nav-item,.room-card,.status-card,.toggle{
+  transition:transform 0.1s ease,opacity 0.1s ease,background var(--transition),color var(--transition),border var(--transition);
+}
+a{color:var(--primary);text-decoration:none}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,select,textarea{font-family:inherit;color:inherit;background:var(--surface2);border:1px solid var(--outline-var);border-radius:var(--radius-xs);padding:12px 16px;font-size:14px;width:100%;outline:none;transition:border var(--transition)}
+input:focus,select:focus{border-color:var(--primary)}
+select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23938F99' fill='none' stroke-width='2'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--outline-var);border-radius:4px}
+
+/* ===== LAYOUT ===== */
+#app{
+  display:flex;flex-direction:column;min-height:100vh;min-height:100dvh;
+  max-width:640px;margin:0 auto;width:100%;
+}
+.app-bar{
+  position:sticky;top:0;z-index:100;
+  background:var(--surface);padding:0 16px;height:var(--appbar-height);
+  display:flex;align-items:center;gap:12px;
+  box-shadow:var(--shadow);
+}
+.app-bar .logo{font-size:20px;font-weight:500;color:var(--primary);flex:1}
+.app-bar .ws-dot{
+  width:8px;height:8px;border-radius:50%;
+  transition:background var(--transition);
+}
+.app-bar .ws-dot.connected{background:var(--success)}
+.app-bar .ws-dot.disconnected{background:var(--error)}
+.main-content{
+  flex:1;padding:16px;padding-bottom:calc(var(--nav-height) + 24px);
+  overflow-y:auto;
+}
+.bottom-nav{
+  position:fixed;bottom:0;left:50%;transform:translateX(-50%);
+  max-width:640px;width:100%;
+  background:var(--surface);
+  display:flex;height:var(--nav-height);
+  box-shadow:0 -2px 8px rgba(0,0,0,0.3);z-index:100;
+}
+.bottom-nav .nav-item{
+  flex:1;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:4px;color:var(--on-surface-var);
+  transition:color var(--transition);position:relative;
+}
+.bottom-nav .nav-item.active{color:var(--primary)}
+.bottom-nav .nav-item.active::before{
+  content:'';position:absolute;top:0;left:25%;right:25%;height:3px;
+  background:var(--primary);border-radius:0 0 4px 4px;
+}
+.bottom-nav .nav-item .material-icons-round{font-size:24px}
+.bottom-nav .nav-item span:last-child{font-size:11px;font-weight:500}
+
+/* ===== COMMON COMPONENTS ===== */
+.card{
+  background:var(--surface);border-radius:var(--radius);
+  padding:20px;margin-bottom:12px;box-shadow:var(--shadow);
+  transition:transform var(--transition);
+}
+.card-title{
+  font-size:14px;font-weight:500;color:var(--on-surface-var);
+  margin-bottom:12px;display:flex;align-items:center;gap:8px;
+}
+.card-title .material-icons-round{font-size:18px;color:var(--primary)}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:12px 24px;border-radius:var(--radius);font-size:14px;font-weight:500;
+  transition:all var(--transition);min-height:44px;
+}
+.btn-primary{background:var(--primary);color:var(--on-primary)}
+.btn-primary:hover{filter:brightness(1.1)}
+.btn-primary:active{transform:scale(0.97)}
+.btn-error{background:var(--error);color:#1C1B1F}
+.btn-error:hover{filter:brightness(1.1)}
+.btn-error:active{transform:scale(0.97)}
+.btn-outline{border:1px solid var(--outline-var);color:var(--on-surface)}
+.btn-outline:hover{background:var(--surface2)}
+.btn-danger{background:var(--error-bg);color:var(--error)}
+.btn-block{width:100%}
+.chip{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:8px 16px;border-radius:20px;font-size:13px;font-weight:500;
+  border:1px solid var(--outline-var);color:var(--on-surface-var);
+  transition:all var(--transition);cursor:pointer;
+}
+.chip.active{background:var(--primary-dim);border-color:var(--primary);color:var(--primary)}
+.chip-settings{padding:8px 10px !important;min-width:auto;border-style:dashed}
+.chip:hover{background:var(--surface2)}
+.badge{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:4px 10px;border-radius:12px;font-size:11px;font-weight:500;
+}
+.badge-success{background:var(--success-bg);color:var(--success)}
+.badge-error{background:var(--error-bg);color:var(--error)}
+.badge-info{background:var(--info-bg);color:var(--info)}
+.toggle{
+  width:48px;height:26px;border-radius:13px;
+  background:var(--outline-var);position:relative;
+  cursor:pointer;transition:background var(--transition);flex-shrink:0;
+}
+.toggle.on{background:var(--primary)}
+.toggle::after{
+  content:'';position:absolute;top:3px;left:3px;
+  width:20px;height:20px;border-radius:50%;
+  background:var(--on-surface);transition:transform var(--transition);
+}
+.toggle.on::after{transform:translateX(22px)}
+.section-title{
+  font-size:12px;font-weight:500;color:var(--on-surface-var);
+  text-transform:uppercase;letter-spacing:1px;
+  margin:20px 0 12px;padding-left:4px;
+}
+.empty-state{
+  text-align:center;padding:40px 20px;color:var(--on-surface-var);
+}
+.empty-state .material-icons-round{font-size:48px;margin-bottom:12px;opacity:0.5}
+.snackbar{
+  position:fixed;bottom:80px;left:50%;transform:translateX(-50%);
+  background:var(--surface2);color:var(--on-surface);
+  padding:12px 24px;border-radius:var(--radius-xs);font-size:14px;
+  box-shadow:var(--shadow-lg);z-index:200;
+  pointer-events:none;max-width:calc(100% - 32px);text-align:center;
+  opacity:0;transition:opacity 0.3s ease;
+}
+.snackbar.show{opacity:1}
+.loading-spinner{
+  width:24px;height:24px;border:2px solid var(--outline-var);
+  border-top-color:var(--primary);border-radius:50%;
+  animation:spin 0.8s linear infinite;margin:0 auto;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
+@keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes glow{0%,100%{filter:drop-shadow(0 0 8px rgba(255,182,140,0.3))}50%{filter:drop-shadow(0 0 20px rgba(255,182,140,0.6))}}
+.fade-in{animation:fadeIn 0.3s ease}
+
+/* ===== LOGIN VIEW ===== */
+.login-wrapper{
+  min-height:100vh;min-height:100dvh;display:flex;align-items:center;
+  justify-content:center;padding:24px;
+  background:linear-gradient(135deg,#1C1B1F 0%,#2B2930 50%,#1C1B1F 100%);
+}
+.login-card{
+  width:100%;max-width:380px;background:var(--surface);
+  border-radius:var(--radius);padding:40px 32px;box-shadow:var(--shadow-lg);
+  text-align:center;
+}
+.login-card .icon-wrap{
+  width:72px;height:72px;border-radius:50%;
+  background:var(--primary-dim);margin:0 auto 24px;
+  display:flex;align-items:center;justify-content:center;
+}
+.login-card .icon-wrap .material-icons-round{font-size:36px;color:var(--primary)}
+.login-card h1{font-size:24px;font-weight:400;margin-bottom:8px;color:var(--on-surface)}
+.login-card p{font-size:14px;color:var(--on-surface-var);margin-bottom:32px}
+.login-card .field{margin-bottom:16px;text-align:left}
+.login-card .field label{display:block;font-size:12px;color:var(--on-surface-var);margin-bottom:6px;font-weight:500}
+.login-card .remember{
+  display:flex;align-items:center;gap:8px;margin-bottom:24px;
+  font-size:13px;color:var(--on-surface-var);cursor:pointer;
+}
+.login-card .remember input[type=checkbox]{
+  width:18px;height:18px;accent-color:var(--primary);cursor:pointer;
+}
+.login-card .error-msg{
+  color:var(--error);font-size:13px;margin-bottom:12px;
+  min-height:20px;
+}
+.login-card.shake{animation:shake 0.4s ease}
+
+/* ===== THERMOSTAT DIAL ===== */
+.dial-wrap{display:flex;justify-content:center;margin:8px 0 16px}
+.dial{position:relative;width:260px;height:260px;touch-action:none}
+.dial svg{width:100%;height:100%}
+.dial-center{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  text-align:center;pointer-events:none;
+}
+.dial-center .target-temp{font-size:56px;font-weight:300;line-height:1}
+.dial-center .target-label{font-size:11px;color:var(--on-surface-var);margin-top:2px;text-transform:uppercase;letter-spacing:1px}
+.dial-center .current-temp{font-size:18px;color:var(--primary);margin-top:8px;font-weight:400}
+.dial.heating svg .arc-value{animation:glow 2s ease-in-out infinite}
+.dial-handle{cursor:grab}
+.dial-handle:active{cursor:grabbing}
+
+/* ===== MODE CHIPS ===== */
+.mode-chips{display:flex;gap:8px;justify-content:center;margin-bottom:16px;flex-wrap:wrap}
+
+/* ===== STATUS ROW ===== */
+.status-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.status-card{
+  background:var(--surface);border-radius:var(--radius);
+  padding:14px;display:flex;align-items:center;gap:10px;
+  box-shadow:var(--shadow);
+}
+.status-icon{
+  width:40px;height:40px;border-radius:var(--radius-sm);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.status-icon.fire{background:var(--primary-dim);color:var(--primary)}
+.status-icon.fire.on{background:rgba(255,100,50,0.2);color:#FF6432}
+.status-icon.weather{background:var(--info-bg);color:var(--info)}
+.status-info .label{font-size:11px;color:var(--on-surface-var)}
+.status-info .value{font-size:18px;font-weight:500}
+.status-info .sub{font-size:11px;color:var(--on-surface-var);margin-top:2px}
+
+/* ===== ROOM CARDS ===== */
+.room-card{
+  background:var(--surface);border-radius:var(--radius);
+  padding:16px;margin-bottom:10px;box-shadow:var(--shadow);
+  display:flex;align-items:center;gap:14px;cursor:pointer;
+  transition:transform var(--transition),background var(--transition);
+  position:relative;overflow:hidden;
+}
+.room-card:hover{background:var(--surface2)}
+.room-card:active{transform:scale(0.98)}
+.room-bar{
+  position:absolute;left:0;top:0;bottom:0;width:4px;
+  border-radius:0 4px 4px 0;
+}
+.room-bar.cold{background:#6EA8FE}
+.room-bar.ok{background:var(--success)}
+.room-bar.hot{background:#FF6B6B}
+.room-icon{
+  width:44px;height:44px;border-radius:var(--radius-sm);
+  background:var(--surface2);display:flex;align-items:center;justify-content:center;
+  font-size:22px;
+}
+.room-info{flex:1;min-width:0}
+.room-info .name{font-size:14px;font-weight:500}
+.room-info .detail{font-size:12px;color:var(--on-surface-var);margin-top:2px}
+.room-temp{text-align:right}
+.room-temp .temp{font-size:28px;font-weight:300}
+.room-temp .unit{font-size:14px;color:var(--on-surface-var)}
+.room-temp .hum{font-size:12px;color:var(--on-surface-var);margin-top:2px}
+.room-card.no-data .room-temp .temp{font-size:13px;color:var(--on-surface-var)}
+
+/* ===== SPARKLINE ===== */
+.sparkline-card{background:var(--surface);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);margin-bottom:12px}
+.sparkline-card canvas{width:100%;height:80px;display:block}
+
+/* Energy cards */
+.energy-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.energy-card{background:var(--surface);border-radius:var(--radius-sm);padding:12px 8px;text-align:center;box-shadow:var(--shadow)}
+.energy-card .material-icons-round{font-size:22px;margin-bottom:4px}
+.energy-card .energy-val{font-size:20px;font-weight:500;line-height:1.2}
+.energy-card .energy-label{font-size:10px;color:var(--on-surface-var);margin-top:2px}
+.saving-tip{display:flex;align-items:center;gap:8px;background:rgba(76,175,80,0.1);border:1px solid rgba(76,175,80,0.3);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:12px;font-size:13px;color:var(--success);cursor:pointer;transition:background var(--transition)}
+.saving-tip:hover{background:rgba(76,175,80,0.18)}
+.saving-tip:active{transform:scale(0.98)}
+
+/* Alert cards */
+.alert-card{display:flex;align-items:flex-start;gap:10px;background:var(--surface);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:8px;box-shadow:var(--shadow)}
+.alert-content{flex:1;min-width:0}
+.alert-title{font-size:13px;font-weight:500;margin-bottom:2px}
+.alert-msg{font-size:12px;color:var(--on-surface-var);line-height:1.4}
+
+/* Location results */
+.location-result{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface);border-radius:var(--radius-sm);margin-bottom:4px;cursor:pointer;transition:background var(--transition)}
+.location-result:hover{background:var(--surface2)}
+.location-result:active{transform:scale(0.98)}
+
+/* Boost mode */
+.boost-header{display:flex;align-items:center;justify-content:space-between;background:var(--surface);border-radius:var(--radius);padding:14px 16px;margin-bottom:2px;box-shadow:var(--shadow);cursor:pointer;transition:background var(--transition)}
+.boost-header:active{background:var(--surface2)}
+.boost-arrow{color:var(--on-surface-var);transition:transform 0.2s}
+.boost-body{background:var(--surface);border-radius:0 0 var(--radius) var(--radius);padding:12px 16px 16px;margin-bottom:12px;box-shadow:var(--shadow)}
+.boost-active-card{background:linear-gradient(135deg,rgba(255,100,50,0.08),rgba(255,152,0,0.08));border:1px solid rgba(255,100,50,0.2);border-radius:var(--radius);padding:16px;margin-bottom:12px}
+.boost-durations{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.boost-btn{background:var(--surface2);border-radius:var(--radius-xs);padding:10px 4px;text-align:center;font-size:18px;font-weight:500;cursor:pointer;transition:all 0.15s;border:2px solid transparent}
+.boost-btn .unit{font-size:11px;font-weight:400;color:var(--on-surface-var)}
+.boost-btn:active{transform:scale(0.93)}
+.boost-btn.selected{background:var(--primary-dim);border-color:var(--primary);color:var(--primary)}
+.boost-progress{background:var(--surface2);border-radius:6px;height:8px;overflow:hidden}
+.boost-bar{background:linear-gradient(90deg,#FF6432,#FF9800);height:100%;border-radius:6px;transition:width 1s linear}
+
+/* Icon picker */
+.icon-picker-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}
+.icon-pick{display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 4px;background:var(--surface2);border-radius:var(--radius-xs);cursor:pointer;border:2px solid transparent;transition:all 0.15s}
+.icon-pick .material-icons-round{font-size:22px;color:var(--on-surface-var);transition:color 0.15s}
+.icon-pick-label{font-size:9px;color:var(--on-surface-var);text-align:center;line-height:1.2}
+.icon-pick:active{transform:scale(0.92)}
+.icon-pick.selected{border-color:var(--primary);background:var(--primary-dim)}
+.icon-pick.selected .material-icons-round{color:var(--primary)}
+.icon-pick.selected .icon-pick-label{color:var(--primary)}
+
+/* Profile cards */
+.profile-card{background:var(--surface);border-radius:var(--radius);padding:16px;margin-bottom:12px;box-shadow:var(--shadow)}
+.profile-header{display:flex;align-items:center;gap:8px;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--outline-var)}
+.profile-fields{display:flex;flex-direction:column;gap:12px}
+.profile-field{display:flex;flex-direction:column;gap:4px}
+.profile-field label{font-size:12px;color:var(--on-surface-var);font-weight:500}
+.profile-icon-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-top:4px}
+.icon-pick-sm{width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:var(--surface2);border-radius:8px;cursor:pointer;border:2px solid transparent;transition:all 0.12s}
+.icon-pick-sm .material-icons-round{font-size:18px;color:var(--on-surface-var)}
+.icon-pick-sm.selected{border-color:var(--primary);background:var(--primary-dim)}
+.icon-pick-sm.selected .material-icons-round{color:var(--primary)}
+.icon-pick-sm:active{transform:scale(0.88)}
+
+/* ===== DEVICES VIEW ===== */
+.device-item{
+  background:var(--surface);border-radius:var(--radius);
+  padding:16px;margin-bottom:10px;box-shadow:var(--shadow);
+}
+.device-header{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.device-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.device-dot.online{background:var(--success);box-shadow:0 0 6px rgba(168,218,181,0.5)}
+.device-dot.offline{background:var(--error)}
+.device-name{font-size:15px;font-weight:500;flex:1}
+.device-meta{display:flex;flex-wrap:wrap;gap:8px;font-size:12px;color:var(--on-surface-var)}
+.device-meta span{display:flex;align-items:center;gap:4px}
+.device-meta .material-icons-round{font-size:14px}
+.device-actions{display:flex;gap:8px;margin-top:12px}
+
+/* ===== SCHEDULE VIEW ===== */
+.day-tabs{display:flex;gap:4px;margin-bottom:16px;overflow-x:auto;padding-bottom:4px}
+.day-tab{
+  flex:1;min-width:44px;padding:10px 4px;text-align:center;
+  border-radius:var(--radius-xs);font-size:13px;font-weight:500;
+  color:var(--on-surface-var);border:1px solid var(--outline-var);
+  transition:all var(--transition);
+}
+.day-tab.active{background:var(--primary);color:var(--on-primary);border-color:var(--primary)}
+.timeline-bar{
+  height:40px;border-radius:var(--radius-xs);overflow:hidden;
+  display:flex;margin-bottom:16px;background:var(--surface2);
+}
+.timeline-seg{height:100%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;color:var(--on-primary)}
+.schedule-entry{
+  background:var(--surface);border-radius:var(--radius);
+  padding:14px;margin-bottom:8px;box-shadow:var(--shadow);
+  display:flex;align-items:center;gap:12px;
+}
+.schedule-entry .time{font-size:20px;font-weight:500;min-width:60px}
+.schedule-entry .temp{font-size:16px;color:var(--primary);flex:1}
+.schedule-entry .del-btn{color:var(--error);padding:8px}
+.schedule-actions{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+
+/* ===== SETTINGS VIEW ===== */
+.settings-group{margin-bottom:16px}
+.settings-group-header{
+  display:flex;align-items:center;gap:10px;padding:14px 16px;
+  background:var(--surface);border-radius:var(--radius);cursor:pointer;
+  box-shadow:var(--shadow);transition:background var(--transition);
+}
+.settings-group-header:hover{background:var(--surface2)}
+.settings-group-header .material-icons-round{color:var(--primary)}
+.settings-group-header .title{flex:1;font-size:15px;font-weight:500}
+.settings-group-header .arrow{color:var(--on-surface-var);transition:transform var(--transition)}
+.settings-group-header.open .arrow{transform:rotate(180deg)}
+.settings-group-body{
+  background:var(--surface);border-radius:0 0 var(--radius) var(--radius);
+  padding:0 16px;max-height:0;overflow:hidden;transition:max-height 0.3s ease,padding 0.3s ease;
+}
+.settings-group-body.open{max-height:800px;padding:16px}
+.setting-row{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 0;border-bottom:1px solid var(--outline-var);
+}
+.setting-row:last-child{border-bottom:none}
+.setting-row .label{font-size:14px;flex:1}
+.setting-row .value{font-size:14px;color:var(--primary);font-weight:500}
+.setting-row input[type=range]{width:120px;accent-color:var(--primary)}
+.setting-row select{width:auto;min-width:120px}
+.setting-row input[type=number]{width:80px;text-align:right}
+.sys-info{font-size:13px;color:var(--on-surface-var);padding:8px 0}
+.sys-info span{color:var(--on-surface)}
+
+/* ===== ANALYTICS VIEW ===== */
+.stat-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.stat-card{
+  background:var(--surface);border-radius:var(--radius);
+  padding:14px;text-align:center;box-shadow:var(--shadow);
+}
+.stat-card .val{font-size:24px;font-weight:500;color:var(--primary)}
+.stat-card .lbl{font-size:11px;color:var(--on-surface-var);margin-top:4px}
+.chart-card{background:var(--surface);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow)}
+.chart-card canvas{width:100%;height:200px;display:block}
+.chart-card .card-title{margin-bottom:12px}
+
+/* ===== HISTORY CHART (ROOMS DETAIL) ===== */
+.room-detail-overlay{
+  position:fixed;inset:0;z-index:150;background:rgba(0,0,0,0.6);
+  display:flex;align-items:flex-end;justify-content:center;
+}
+.room-detail-sheet{
+  width:100%;max-width:640px;background:var(--bg);
+  border-radius:var(--radius) var(--radius) 0 0;
+  padding:24px;max-height:80vh;overflow-y:auto;
+  animation:slideUp 0.3s ease;
+}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.room-detail-sheet .header{display:flex;align-items:center;gap:12px;margin-bottom:20px}
+.room-detail-sheet .header h2{flex:1;font-size:18px;font-weight:500}
+.range-toggle{display:flex;gap:4px;margin-bottom:16px}
+.range-toggle button{
+  padding:8px 16px;border-radius:20px;font-size:13px;font-weight:500;
+  border:1px solid var(--outline-var);color:var(--on-surface-var);
+  transition:all var(--transition);
+}
+.range-toggle button.active{background:var(--primary);color:var(--on-primary);border-color:var(--primary)}
+
+/* ===== MODAL ===== */
+.modal-overlay{
+  position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.6);
+  display:flex;align-items:center;justify-content:center;padding:24px;
+}
+.modal{
+  width:100%;max-width:380px;background:var(--surface);
+  border-radius:var(--radius);padding:24px;box-shadow:var(--shadow-lg);
+  animation:fadeIn 0.2s ease;
+}
+.modal h3{font-size:18px;font-weight:500;margin-bottom:16px}
+.modal .field{margin-bottom:14px}
+.modal .field label{display:block;font-size:12px;color:var(--on-surface-var);margin-bottom:6px;font-weight:500}
+.modal .actions{display:flex;gap:8px;justify-content:flex-end;margin-top:20px}
+
+/* ===== RESPONSIVE ===== */
+@media(min-width:480px){
+  .dial{width:300px;height:300px}
+  .stat-cards{grid-template-columns:repeat(3,1fr)}
+}
+@media(max-width:360px){
+  .dial{width:220px;height:220px}
+  .dial-center .target-temp{font-size:44px}
+  .stat-cards{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="snackbar" class="snackbar"></div>
+
+<script>
+/* ===== STATE ===== */
+window.TonbilState = {
+  user: null,
+  rooms: [],
+  devices: [],
+  sensorData: {},
+  heatingConfig: { targetTemp: 22, hysteresis: 0.5, minCycleMin: 3, mode: 'auto', strategy: 'weighted_avg', gasPricePerM3: 7.5, floorAreaM2: 120, boilerPowerKw: 24 },
+  weather: null,
+  boilerStatus: { active: false, runtimeToday: 0, boost: false, boostRemaining: 0, boostTotal: 0 },
+  schedules: [],
+  wsConnected: false,
+  currentView: 'login',
+  selectedDay: 0,
+  selectedRoomDetail: null,
+  historyRange: '24h',
+  profiles: [],
+  activeProfile: null,
+};
+
+const S = window.TonbilState;
+const $ = (sel, ctx) => (ctx || document).querySelector(sel);
+const $$ = (sel, ctx) => [...(ctx || document).querySelectorAll(sel)];
+const app = () => $('#app');
+
+/* ===== API HELPERS ===== */
+const API_BASE = '/api';
+
+async function api(path, opts = {}) {
+  const url = API_BASE + path;
+  const config = {
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    ...opts,
+  };
+  if (opts.body && typeof opts.body === 'object') {
+    config.body = JSON.stringify(opts.body);
+  }
+  try {
+    const res = await fetch(url, config);
+    if (res.status === 401) {
+      S.user = null;
+      navigate('login');
+      return { success: false, message: 'Oturum suresi doldu' };
+    }
+    const json = await res.json();
+    return json;
+  } catch (e) {
+    console.error('API error:', e);
+    return { success: false, message: 'Baglanti hatasi' };
+  }
+}
+
+const apiGet = (p) => api(p);
+const apiPost = (p, b) => api(p, { method: 'POST', body: b });
+const apiPut = (p, b) => api(p, { method: 'PUT', body: b });
+const apiDelete = (p) => api(p, { method: 'DELETE' });
+
+/* ===== SNACKBAR ===== */
+let snackTimer = null;
+function showSnack(msg) {
+  const el = $('#snackbar');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(snackTimer);
+  snackTimer = setTimeout(() => el.classList.remove('show'), 2000);
+}
+
+/* ===== ROUTER ===== */
+function navigate(view) {
+  if (view === 'login') {
+    window.location.hash = '#/login';
+  } else {
+    window.location.hash = '#/' + view;
+  }
+}
+
+function getRoute() {
+  const h = window.location.hash || '#/login';
+  const path = h.replace('#/', '').split('?')[0];
+  if (!path || path === 'login') return 'login';
+  if (path === '' || path === 'dashboard') return 'dashboard';
+  return path;
+}
+
+window.addEventListener('hashchange', () => {
+  const route = getRoute();
+  if (route !== 'login' && !S.user) {
+    navigate('login');
+    return;
+  }
+  S.currentView = route;
+  render();
+});
+
+/* ===== WEBSOCKET ===== */
+let ws = null;
+let wsRetryDelay = 1000;
+let wsRetryTimer = null;
+
+let wsKeepAlive = null;
+
+function connectWS() {
+  if (ws && ws.readyState <= 1) return;
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  ws = new WebSocket(proto + '//' + location.host + '/ws');
+
+  ws.onopen = () => {
+    S.wsConnected = true;
+    wsRetryDelay = 1000;
+    updateWSIndicator();
+    console.log('[WS] Baglandi');
+    // Keepalive: her 30sn pong gonder (sunucu timeout'u onlemek icin)
+    clearInterval(wsKeepAlive);
+    wsKeepAlive = setInterval(() => {
+      if (ws && ws.readyState === 1) ws.send('pong');
+    }, 30000);
+  };
+  ws.onclose = () => {
+    S.wsConnected = false;
+    clearInterval(wsKeepAlive);
+    updateWSIndicator();
+    console.log('[WS] Kapandi, yeniden baglaniliyor...');
+    wsRetryTimer = setTimeout(connectWS, wsRetryDelay);
+    wsRetryDelay = Math.min(wsRetryDelay * 2, 30000);
+  };
+  ws.onerror = () => { ws.close(); };
+  ws.onmessage = (ev) => {
+    try {
+      const msg = JSON.parse(ev.data);
+      handleWSMessage(msg);
+    } catch (e) { /* ignore */ }
+  };
+}
+
+function handleWSMessage(msg) {
+  if (!msg || !msg.type) return;
+  if (msg.type === 'ping') return; // keepalive
+
+  if (msg.type === 'sensor' && msg.data) {
+    const d = msg.data;
+    const key = d.device_id || d.deviceId;
+    if (key) {
+      S.sensorData[key] = {
+        temp: d.temp ?? d.temperature,
+        hum: d.hum ?? d.humidity,
+        pres: d.pres ?? d.pressure,
+        ts: d.ts || new Date().toISOString(),
+      };
+
+      // Relay/combo bilgisi sensor mesajinda da gelebilir
+      if (d.relay !== undefined) {
+        S.boilerStatus.active = !!d.relay;
+        S.boilerStatus.boost = d.boost ?? S.boilerStatus.boost;
+        S.boilerStatus.boostRemaining = d.boostRemaining ?? S.boilerStatus.boostRemaining;
+        S.boilerStatus.boostTotal = d.boostTotal ?? S.boilerStatus.boostTotal;
+      }
+
+      // ANINDA guncelle — hangi sayfadaysak
+      updateLiveWidgets();
+    }
+  } else if (msg.type === 'boiler' && msg.data) {
+    S.boilerStatus = {
+      active: msg.data.active ?? msg.data.relay ?? S.boilerStatus.active,
+      runtimeToday: msg.data.runtimeToday ?? msg.data.runtime_today ?? S.boilerStatus.runtimeToday,
+      boost: msg.data.boost ?? S.boilerStatus.boost,
+      boostRemaining: msg.data.boostRemaining ?? msg.data.boost_remaining ?? S.boilerStatus.boostRemaining,
+      boostTotal: msg.data.boostTotal ?? msg.data.boost_total ?? S.boilerStatus.boostTotal,
+    };
+    updateLiveWidgets();
+  } else if (msg.type === 'boost_update' && msg.data) {
+    S.boilerStatus.boost = msg.data.active ?? false;
+    S.boilerStatus.boostRemaining = msg.data.remaining_minutes ?? 0;
+    S.boilerStatus.boostTotal = msg.data.total_minutes ?? 0;
+    if (msg.data.active) S.boilerStatus.active = true;
+    updateLiveWidgets();
+  } else if (msg.type === 'relay_state' && msg.data) {
+    S.boilerStatus.active = !!msg.data.state;
+    updateLiveWidgets();
+  }
+}
+
+// Tum canli widget'lari aninda guncelle (sayfayi yeniden render etmeden)
+function updateLiveWidgets() {
+  // Status kartlari (kombi durumu, dis hava)
+  renderStatusCards();
+  // Oda kartlari (sicaklik, nem)
+  renderRoomCards();
+  // Dial uzerindeki guncel sicaklik
+  updateDialCurrentTemp();
+  // Dial isitma glow efekti
+  updateDialHeating();
+  // Boost paneli guncelle (aktif/pasif)
+  const boostEl = $('#boost-section');
+  // Enerji kartlari varsa guncelle
+  const energyEl = $('#energy-cards');
+}
+
+function updateWSIndicator() {
+  const dot = $('.ws-dot');
+  if (dot) {
+    dot.className = 'ws-dot ' + (S.wsConnected ? 'connected' : 'disconnected');
+  }
+}
+
+/* ===== FORMATTING ===== */
+// DB'deki oda icon string'ini Material Icons'a cevir
+function roomIconMap(icon) {
+  const map = {
+    'sofa': 'weekend', 'salon': 'weekend', 'living': 'weekend',
+    'bed': 'bed', 'yatak': 'bed', 'bedroom': 'bed',
+    'kitchen': 'countertops', 'mutfak': 'countertops',
+    'bath': 'bathtub', 'banyo': 'bathtub', 'bathroom': 'bathtub',
+    'child': 'child_care', 'cocuk': 'child_care', 'kids': 'child_care',
+    'office': 'desktop_windows', 'calisma': 'desktop_windows',
+    'dining': 'dining', 'yemek': 'dining',
+    'hall': 'door_front', 'antre': 'door_front', 'koridor': 'door_front',
+    'garage': 'garage', 'garaj': 'garage',
+    'balcony': 'balcony', 'balkon': 'balcony',
+    'laundry': 'local_laundry_service', 'camasir': 'local_laundry_service',
+    'room': 'meeting_room',
+  };
+  if (!icon) return 'meeting_room';
+  return map[icon.toLowerCase()] || icon;
+}
+
+function fmtTemp(v) {
+  if (v == null || isNaN(v)) return '--';
+  return v.toFixed(1).replace('.', ',') + '\u00B0C';
+}
+function fmtTempShort(v) {
+  if (v == null || isNaN(v)) return '--';
+  return v.toFixed(1).replace('.', ',') + '\u00B0';
+}
+function fmtHum(v) {
+  if (v == null || isNaN(v)) return '--';
+  return '%' + Math.round(v);
+}
+function fmtPres(v) {
+  if (v == null || isNaN(v)) return '';
+  return Math.round(v) + ' hPa';
+}
+function fmtTime(ts) {
+  if (!ts) return '--';
+  const d = new Date(ts);
+  return d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+}
+function fmtDate(ts) {
+  if (!ts) return '--';
+  const d = new Date(ts);
+  return d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+}
+function fmtMinutes(m) {
+  if (!m && m !== 0) return '--';
+  const h = Math.floor(m / 60);
+  const min = Math.round(m % 60);
+  return h > 0 ? h + 's ' + min + 'dk' : min + 'dk';
+}
+
+/* ===== DATA LOADING ===== */
+async function loadDashboardData() {
+  const [roomsRes, devicesRes, sensorRes, configRes, weatherRes, schedRes] = await Promise.all([
+    apiGet('/rooms'),
+    apiGet('/devices'),
+    apiGet('/sensors/current'),
+    apiGet('/config/heating'),
+    apiGet('/weather/current'),
+    apiGet('/config/schedules'),
+  ]);
+  if (roomsRes.success && roomsRes.data) S.rooms = roomsRes.data;
+  if (devicesRes.success && devicesRes.data) S.devices = devicesRes.data;
+  if (sensorRes.success && sensorRes.data) {
+    // API array dondurur, biz device_id bazli obje tutuyoruz
+    const sd = {};
+    const arr = Array.isArray(sensorRes.data) ? sensorRes.data : [];
+    arr.forEach(s => {
+      sd[s.device_id] = { temp: s.temperature, hum: s.humidity, pres: s.pressure, ts: s.timestamp };
+    });
+    S.sensorData = sd;
+  }
+  if (configRes.success && configRes.data) {
+    const c = configRes.data;
+    S.heatingConfig = {
+      targetTemp: c.target_temp ?? c.targetTemp ?? 22,
+      hysteresis: c.hysteresis ?? 0.5,
+      minCycleMin: c.min_cycle_min ?? c.minCycleMin ?? 3,
+      mode: c.mode ?? 'auto',
+      strategy: c.strategy ?? 'weighted_avg',
+      gasPricePerM3: c.gas_price_per_m3 ?? c.gasPricePerM3 ?? 11.91,
+      floorAreaM2: c.floor_area_m2 ?? c.floorAreaM2 ?? 100,
+      boilerPowerKw: c.boiler_power_kw ?? c.boilerPowerKw ?? 30,
+      flowTemp: c.flow_temp ?? c.flowTemp ?? 60,
+      flow_temp: c.flow_temp ?? 60,
+      boilerBrand: c.boiler_brand ?? 'ECA Proteus Premix',
+      boilerModel: c.boiler_model ?? '30 HM',
+      relayState: c.relay_state ?? false,
+    };
+  }
+  if (weatherRes.success && weatherRes.data) {
+    const wd = weatherRes.data;
+    S.weather = { temp: wd.temperature, feelsLike: wd.feels_like, humidity: wd.humidity, pressure: wd.pressure, windSpeed: wd.wind_speed, description: wd.description, icon: wd.icon, city: wd.city };
+  }
+  if (schedRes.success && schedRes.data) S.schedules = schedRes.data;
+
+  // Boiler status: config'den relay_state + boost status'u yukle
+  S.boilerStatus.active = S.heatingConfig.relayState || false;
+
+  // Boost durumunu da yukle
+  try {
+    const boostRes = await apiGet('/config/boost');
+    if (boostRes.success && boostRes.data) {
+      S.boilerStatus.boost = boostRes.data.active || false;
+      S.boilerStatus.boostRemaining = boostRes.data.remaining_minutes || 0;
+      S.boilerStatus.boostTotal = boostRes.data.total_minutes || 0;
+    }
+  } catch(e) {}
+
+  // Son telemetri'den relay durumunu oku (daha guncel)
+  try {
+    const relayDev = S.devices.find(d => d.type === 'relay' || d.type === 'combo');
+    if (relayDev && S.sensorData[relayDev.device_id]) {
+      // sensorData'da relay bilgisi yoksa MQTT'ten gelecek
+    }
+  } catch(e) {}
+}
+
+let weatherCacheTime = 0;
+async function refreshWeather() {
+  if (Date.now() - weatherCacheTime < 15 * 60 * 1000) return;
+  const res = await apiGet('/weather/current');
+  if (res.success && res.data) {
+    const wd = res.data;
+    S.weather = { temp: wd.temperature, feelsLike: wd.feels_like, humidity: wd.humidity, pressure: wd.pressure, windSpeed: wd.wind_speed, description: wd.description, icon: wd.icon, city: wd.city };
+    weatherCacheTime = Date.now();
+  }
+}
+
+/* ===== SENSOR HELPERS ===== */
+function getSensorForRoom(roomId) {
+  const dev = S.devices.find(d => d.room_id === roomId && (d.type === 'sensor' || d.type === 'combo'));
+  if (!dev) return null;
+  const data = S.sensorData[dev.device_id];
+  return data ? { ...data, device: dev } : { device: dev };
+}
+
+function getAvgTemp() {
+  const temps = [];
+  S.rooms.forEach(r => {
+    const s = getSensorForRoom(r.id);
+    if (s && s.temp != null) temps.push(s.temp);
+  });
+  if (temps.length === 0) return null;
+  return temps.reduce((a, b) => a + b, 0) / temps.length;
+}
+
+function getRoomTempClass(temp, target) {
+  if (temp == null) return '';
+  if (temp < target - 2) return 'cold';
+  if (temp > target + 2) return 'hot';
+  return 'ok';
+}
+
+/* ===== RENDER ENGINE ===== */
+function render() {
+  const view = S.currentView;
+  if (view === 'login') {
+    renderLogin();
+    return;
+  }
+  let content = '';
+  switch (view) {
+    case 'dashboard': content = renderDashboard(); break;
+    case 'rooms': content = renderRooms(); break;
+    case 'devices': content = renderDevices(); break;
+    case 'schedule': content = renderSchedule(); break;
+    case 'settings': content = renderSettings(); break;
+    case 'analytics': content = renderAnalytics(); break;
+    case 'profiles': content = renderProfiles(); break;
+    default: content = renderDashboard(); break;
+  }
+  app().innerHTML = `
+    <div class="app-bar">
+      <span class="material-icons-round">thermostat</span>
+      <span class="logo">TonbilTerm</span>
+      <div class="ws-dot ${S.wsConnected ? 'connected' : 'disconnected'}" title="${S.wsConnected ? 'Bagli' : 'Baglanti yok'}"></div>
+    </div>
+    <div class="main-content" id="main-content">
+      ${content}
+    </div>
+    ${renderBottomNav(view)}
+  `;
+  afterRender(view);
+}
+
+function afterRender(view) {
+  if (view === 'dashboard') {
+    initDial();
+    drawSparkline();
+    loadEnergyData();
+  }
+  if (view === 'analytics') {
+    drawBarChart();
+    loadAnalyticsEnergy();
+  }
+  if (view === 'settings') {
+    loadCurrentLocation();
+  }
+}
+
+/* ===== LOGIN ===== */
+function renderLogin() {
+  const savedEmail = localStorage.getItem('tonbil_email') || 'admin@tonbil.local';
+  const remember = localStorage.getItem('tonbil_remember') === '1';
+  app().innerHTML = `
+    <div class="login-wrapper">
+      <div class="login-card" id="login-card">
+        <div class="icon-wrap">
+          <span class="material-icons-round">thermostat</span>
+        </div>
+        <h1>TonbilTerm</h1>
+        <p>Akilli Termostat Paneline Giris</p>
+        <div class="error-msg" id="login-error"></div>
+        <div class="field">
+          <label>E-posta</label>
+          <input type="email" id="login-email" value="${remember ? savedEmail : 'admin@tonbil.local'}" autocomplete="email">
+        </div>
+        <div class="field">
+          <label>Sifre</label>
+          <input type="password" id="login-pass" placeholder="Sifrenizi girin" autocomplete="current-password">
+        </div>
+        <label class="remember">
+          <input type="checkbox" id="login-remember" ${remember ? 'checked' : ''}>
+          Beni Hatirla
+        </label>
+        <button class="btn btn-primary btn-block" id="login-btn">
+          <span class="material-icons-round">login</span>
+          Giris Yap
+        </button>
+      </div>
+    </div>
+  `;
+  $('#login-btn').onclick = doLogin;
+  $('#login-pass').onkeydown = (e) => { if (e.key === 'Enter') doLogin(); };
+}
+
+async function doLogin() {
+  const email = $('#login-email').value.trim();
+  const pass = $('#login-pass').value;
+  const remember = $('#login-remember').checked;
+  const errEl = $('#login-error');
+  const card = $('#login-card');
+
+  if (!email || !pass) {
+    errEl.textContent = 'E-posta ve sifre gerekli';
+    card.classList.add('shake');
+    setTimeout(() => card.classList.remove('shake'), 400);
+    return;
+  }
+
+  const btn = $('#login-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="loading-spinner"></div>';
+
+  const res = await apiPost('/auth/login', { email, password: pass });
+
+  if (res.success) {
+    if (remember) {
+      localStorage.setItem('tonbil_email', email);
+      localStorage.setItem('tonbil_remember', '1');
+    } else {
+      localStorage.removeItem('tonbil_email');
+      localStorage.removeItem('tonbil_remember');
+    }
+    S.user = res.data || { email };
+    await loadDashboardData();
+    connectWS();
+    navigate('dashboard');
+  } else {
+    errEl.textContent = res.message || 'Giris basarisiz';
+    card.classList.add('shake');
+    setTimeout(() => card.classList.remove('shake'), 400);
+    btn.disabled = false;
+    btn.innerHTML = '<span class="material-icons-round">login</span> Giris Yap';
+  }
+}
+
+/* ===== BOTTOM NAV ===== */
+function renderBottomNav(active) {
+  const items = [
+    { id: 'dashboard', icon: 'home', label: 'Ana Sayfa' },
+    { id: 'analytics', icon: 'bar_chart', label: 'Enerji' },
+    { id: 'devices', icon: 'devices_other', label: 'Cihazlar' },
+    { id: 'settings', icon: 'settings', label: 'Ayarlar' },
+  ];
+  return `<nav class="bottom-nav">${items.map(it => `
+    <div class="nav-item ${active === it.id ? 'active' : ''}" onclick="navigate('${it.id}')">
+      <span class="material-icons-round">${it.icon}</span>
+      <span>${it.label}</span>
+    </div>
+  `).join('')}</nav>`;
+}
+
+/* ===== DASHBOARD ===== */
+function renderDashboard() {
+  const cfg = S.heatingConfig;
+  const avgTemp = getAvgTemp();
+  const mode = cfg.mode || 'auto';
+  const ap = S.activeProfile;
+  const isManual = mode === 'manual';
+
+  return `
+    <div class="fade-in">
+      ${renderDialSVG(cfg.targetTemp, avgTemp)}
+      <div class="mode-chips" id="mode-chips">
+        ${getProfiles().map(p => `
+          <div class="chip ${ap === p.id ? 'active' : ''}" onclick="activateProfile('${p.id}')">
+            <span class="material-icons-round" style="font-size:16px">${p.icon}</span> ${p.name}
+          </div>
+        `).join('')}
+        <div class="chip ${isManual ? 'active' : ''}" onclick="setMode('manual')">
+          <span class="material-icons-round" style="font-size:16px">tune</span> MANUEL
+        </div>
+        <div class="chip chip-settings" onclick="navigate('profiles')" title="Profil Ayarlari">
+          <span class="material-icons-round" style="font-size:16px">edit</span>
+        </div>
+      </div>
+      ${isManual ? renderManualToggle() : ''}
+      ${renderBoostSection()}
+      <div class="status-row" id="status-row">
+        ${renderStatusCardsInner()}
+      </div>
+      <div id="energy-cards" class="energy-section"></div>
+      <div id="alert-cards" class="alert-section"></div>
+      <div class="section-title">Odalar</div>
+      <div id="room-list">
+        ${renderRoomList()}
+      </div>
+      <div class="sparkline-card" id="sparkline-card">
+        <div class="card-title"><span class="material-icons-round">show_chart</span> Son 24 Saat</div>
+        <div id="sparkline-stats" style="display:flex;gap:12px;margin-bottom:8px;font-size:12px"></div>
+        <canvas id="sparkline-canvas" height="100"></canvas>
+      </div>
+    </div>
+  `;
+}
+
+/* ===== ENERGY CARDS ===== */
+async function loadEnergyData() {
+  const [energyRes, alertRes] = await Promise.all([
+    apiGet('/energy/current'),
+    apiGet('/energy/alerts'),
+  ]);
+  if (energyRes.success) renderEnergyCards(energyRes.data);
+  if (alertRes.success) renderAlertCards(alertRes.data);
+}
+
+function renderEnergyCards(data) {
+  const el = $('#energy-cards');
+  if (!el) return;
+  const t = data.today || {};
+  const eff = data.efficiency || {};
+  const flowTemp = data.flow_temp || 60;
+  const isCond = eff.is_condensing;
+  const effPct = eff.current_pct || 0;
+  const savingsPct = eff.potential_savings_pct || 0;
+
+  el.innerHTML = `
+    <div class="card-title" style="margin-top:16px"><span class="material-icons-round">bolt</span> Enerji</div>
+    <div class="energy-grid">
+      <div class="energy-card">
+        <span class="material-icons-round" style="color:#FF9800">local_gas_station</span>
+        <div class="energy-val">${(t.gas_m3 || 0).toFixed(2)}</div>
+        <div class="energy-label">m³ gaz</div>
+      </div>
+      <div class="energy-card">
+        <span class="material-icons-round" style="color:#4CAF50">payments</span>
+        <div class="energy-val">${(t.cost_tl || 0).toFixed(1)}</div>
+        <div class="energy-label">₺ bugun</div>
+      </div>
+      <div class="energy-card">
+        <span class="material-icons-round" style="color:${isCond ? '#4CAF50' : '#FF5722'}">speed</span>
+        <div class="energy-val">%${effPct.toFixed(0)}</div>
+        <div class="energy-label">${isCond ? 'Yogusmali' : 'Standart'}</div>
+      </div>
+      <div class="energy-card">
+        <span class="material-icons-round" style="color:#2196F3">thermostat</span>
+        <div class="energy-val">${flowTemp}°</div>
+        <div class="energy-label">Su sic.</div>
+      </div>
+    </div>
+    ${savingsPct > 3 ? `
+    <div class="saving-tip" onclick="navigate('settings')">
+      <span class="material-icons-round">tips_and_updates</span>
+      <span>Su sicakligini dusurerek ~%${savingsPct.toFixed(0)} tasarruf edebilirsiniz</span>
+      <span class="material-icons-round" style="font-size:16px">chevron_right</span>
+    </div>` : ''}
+  `;
+}
+
+function renderAlertCards(data) {
+  const el = $('#alert-cards');
+  if (!el) return;
+  const alerts = data.alerts || [];
+  if (alerts.length === 0) { el.innerHTML = ''; return; }
+
+  const iconMap = { leaf: 'eco', flame: 'local_fire_department', droplet: 'water_drop',
+    thermometer: 'thermostat', warning: 'warning', clock: 'schedule', snow: 'ac_unit',
+    sun: 'wb_sunny', wind: 'air', bolt: 'bolt', info: 'info', check: 'check_circle' };
+  const colorMap = { critical: 'var(--error)', warning: '#FF9800', info: 'var(--info)', success: 'var(--success)' };
+
+  el.innerHTML = alerts.slice(0, 3).map(a => {
+    const icon = iconMap[a.icon] || 'notifications';
+    const color = colorMap[a.severity] || 'var(--on-surface-var)';
+    return `
+      <div class="alert-card" style="border-left:3px solid ${color}">
+        <span class="material-icons-round" style="color:${color};font-size:20px">${icon}</span>
+        <div class="alert-content">
+          <div class="alert-title">${a.title}</div>
+          <div class="alert-msg">${a.message}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderManualToggle() {
+  const active = S.boilerStatus.active;
+  return `
+    <div class="card" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span class="material-icons-round" style="color:${active ? '#FF6432' : 'var(--on-surface-var)'}">local_fire_department</span>
+        <span>Kombi ${active ? 'ACIK' : 'KAPALI'}</span>
+      </div>
+      <div class="toggle ${active ? 'on' : ''}" onclick="toggleRelay()"></div>
+    </div>
+  `;
+}
+
+function renderBoostSection() {
+  const b = S.boilerStatus;
+  if (b.boost) {
+    // Boost aktif — her zaman göster
+    return `
+      <div class="boost-active-card">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+          <span class="material-icons-round pulse" style="font-size:28px;color:#FF6432">local_fire_department</span>
+          <div>
+            <div style="font-size:16px;font-weight:500;color:var(--primary)">Boost Modu Aktif</div>
+            <div style="font-size:13px;color:var(--on-surface-var)">${b.boostRemaining} dk kaldi / ${b.boostTotal} dk</div>
+          </div>
+        </div>
+        <div class="boost-progress">
+          <div class="boost-bar" style="width:${((b.boostTotal - b.boostRemaining) / b.boostTotal * 100)}%"></div>
+        </div>
+        <button class="btn btn-error btn-block" style="margin-top:12px" onclick="cancelBoost()">
+          <span class="material-icons-round">stop</span> Boost Iptal
+        </button>
+      </div>
+    `;
+  }
+  // Collapsible boost panel
+  return `
+    <div class="boost-header" onclick="toggleBoostPanel()">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="material-icons-round" style="color:var(--primary);font-size:20px">rocket_launch</span>
+        <span style="font-size:14px;font-weight:500">Boost Modu</span>
+        <span style="font-size:12px;color:var(--on-surface-var)">— sureli zorla calistir</span>
+      </div>
+      <span class="material-icons-round boost-arrow" id="boost-arrow">expand_more</span>
+    </div>
+    <div class="boost-body" id="boost-body" style="display:none">
+      <div class="boost-durations" id="boost-durations">
+        ${[10,20,30,40,50,60,90,120].map(m => `
+          <div class="boost-btn ${m === 30 ? 'selected' : ''}" onclick="selectBoostDuration(${m})" data-min="${m}">
+            ${m < 60 ? m + '<span class="unit">dk</span>' : (m >= 60 && m < 120 ? (m/60) + '<span class="unit">sa</span>' : '2<span class="unit">sa</span>')}
+          </div>
+        `).join('')}
+      </div>
+      <button class="btn btn-primary btn-block" style="margin-top:12px" onclick="activateBoost()">
+        <span class="material-icons-round">play_arrow</span> Boost Baslat
+      </button>
+    </div>
+  `;
+}
+
+window.toggleBoostPanel = function() {
+  const body = $('#boost-body');
+  const arrow = $('#boost-arrow');
+  if (!body) return;
+  const isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : 'block';
+  if (arrow) arrow.textContent = isOpen ? 'expand_more' : 'expand_less';
+};
+
+window.selectBoostDuration = function(min) {
+  document.querySelectorAll('.boost-btn').forEach(b => b.classList.remove('selected'));
+  document.querySelector(`.boost-btn[data-min="${min}"]`)?.classList.add('selected');
+  S._boostMinutes = min;
+};
+
+window.activateBoost = async function() {
+  const minutes = S._boostMinutes || 30;
+  const relayDev = S.devices.find(d => d.type === 'relay' || d.type === 'combo');
+  if (!relayDev) { showSnack('Role cihazi bulunamadi'); return; }
+  const res = await apiPost('/config/boost', { minutes });
+  if (res.success) {
+    S.boilerStatus.boost = true;
+    S.boilerStatus.boostRemaining = minutes;
+    S.boilerStatus.boostTotal = minutes;
+    S.boilerStatus.active = true;
+    updateLiveWidgets();
+    showSnack('Boost basladi: ' + minutes + ' dakika');
+  } else {
+    showSnack(res.message || 'Boost baslatilamadi');
+  }
+};
+
+window.cancelBoost = async function() {
+  const res = await apiDelete('/config/boost');
+  if (res.success) {
+    S.boilerStatus.boost = false;
+    S.boilerStatus.boostRemaining = 0;
+    S.boilerStatus.active = false;
+    updateLiveWidgets();
+    showSnack('Boost iptal edildi');
+  } else {
+    showSnack(res.message || 'Boost iptal edilemedi');
+  }
+};
+
+async function toggleRelay() {
+  const newState = !S.boilerStatus.active;
+  const relayDev = S.devices.find(d => d.type === 'relay' || d.type === 'combo');
+  if (!relayDev) { showSnack('Role cihazi bulunamadi'); return; }
+  const res = await apiPost('/devices/' + relayDev.device_id + '/command', {
+    command: newState ? 'relay_on' : 'relay_off',
+  });
+  if (res.success) {
+    S.boilerStatus.active = newState;
+    updateLiveWidgets();
+    showSnack('Kombi ' + (newState ? 'acildi' : 'kapatildi'));
+  } else {
+    showSnack(res.message || 'Komut gonderilemedi');
+  }
+}
+
+function renderStatusCardsInner() {
+  const boiler = S.boilerStatus;
+  const w = S.weather;
+  return `
+    <div class="status-card">
+      <div class="status-icon fire ${boiler.active ? 'on' : ''}">
+        <span class="material-icons-round">local_fire_department</span>
+      </div>
+      <div class="status-info">
+        <div class="label">Kombi</div>
+        <div class="value">${boiler.active ? 'ACIK' : 'KAPALI'}</div>
+        <div class="sub">${fmtMinutes(boiler.runtimeToday)} bugun</div>
+      </div>
+    </div>
+    <div class="status-card">
+      <div class="status-icon weather">
+        <span class="material-icons-round">${getWeatherIcon(w)}</span>
+      </div>
+      <div class="status-info">
+        <div class="label">Dis Hava</div>
+        <div class="value">${w ? fmtTempShort(w.temp) : '--'}</div>
+        <div class="sub">${w ? 'Hissedilen ' + fmtTempShort(w.feelsLike) : '--'}</div>
+      </div>
+    </div>
+  `;
+}
+
+function renderStatusCards() {
+  const el = $('#status-row');
+  if (el) el.innerHTML = renderStatusCardsInner();
+}
+
+function getWeatherIcon(w) {
+  if (!w || !w.icon) return 'cloud';
+  const map = {
+    'clear-day': 'wb_sunny', 'clear-night': 'nights_stay',
+    'partly-cloudy-day': 'partly_cloudy_day', 'partly-cloudy-night': 'nights_stay',
+    'cloudy': 'cloud', 'fog': 'foggy',
+    'drizzle': 'grain', 'rain': 'water_drop',
+    'snow': 'ac_unit', 'thunderstorm': 'thunderstorm',
+  };
+  return map[w.icon] || 'cloud';
+}
+
+function renderRoomList() {
+  if (S.rooms.length === 0) {
+    return '<div class="empty-state"><span class="material-icons-round">sensor_door</span><div>Henuz oda eklenmemis</div></div>';
+  }
+  return S.rooms.map(r => {
+    const s = getSensorForRoom(r.id);
+    const hasData = s && s.temp != null;
+    const cls = hasData ? getRoomTempClass(s.temp, S.heatingConfig.targetTemp) : '';
+    return `
+      <div class="room-card ${hasData ? '' : 'no-data'}" onclick="openRoomDetail(${r.id})">
+        <div class="room-bar ${cls}"></div>
+        <div class="room-icon"><span class="material-icons-round">${roomIconMap(r.icon)}</span></div>
+        <div class="room-info">
+          <div class="name">${esc(r.name)}</div>
+          <div class="detail">${hasData ? fmtHum(s.hum) + (s.pres ? ' · ' + fmtPres(s.pres) : '') : 'Sensor bekleniyor...'}</div>
+        </div>
+        <div class="room-temp">
+          ${hasData
+            ? `<span class="temp">${fmtTempShort(s.temp)}</span>`
+            : `<span class="temp">--</span>`
+          }
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderRoomCards() {
+  const el = $('#room-list');
+  if (el) el.innerHTML = renderRoomList();
+}
+
+/* ===== THERMOSTAT DIAL (SVG) ===== */
+function renderDialSVG(target, current) {
+  const cx = 130, cy = 130, r = 110;
+  const startAngle = 135, endAngle = 405;
+  const totalArc = endAngle - startAngle;
+  const minTemp = 15, maxTemp = 30;
+  const pct = Math.max(0, Math.min(1, (target - minTemp) / (maxTemp - minTemp)));
+  const valueAngle = startAngle + pct * totalArc;
+
+  return `
+    <div class="dial-wrap">
+      <div class="dial ${S.boilerStatus.active ? 'heating' : ''}" id="dial">
+        <svg viewBox="0 0 260 260" id="dial-svg">
+          <defs>
+            <linearGradient id="arcGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#6EA8FE"/>
+              <stop offset="30%" stop-color="#A8DAB5"/>
+              <stop offset="60%" stop-color="#FFB68C"/>
+              <stop offset="100%" stop-color="#FF6B6B"/>
+            </linearGradient>
+          </defs>
+          <!-- Background arc -->
+          <path d="${describeArc(cx, cy, r, startAngle, endAngle)}" fill="none" stroke="var(--surface2)" stroke-width="12" stroke-linecap="round"/>
+          <!-- Value arc -->
+          <path class="arc-value" d="${describeArc(cx, cy, r, startAngle, valueAngle)}" fill="none" stroke="url(#arcGrad)" stroke-width="12" stroke-linecap="round"/>
+          <!-- Tick marks -->
+          ${renderTicks(cx, cy, r, startAngle, endAngle, minTemp, maxTemp)}
+          <!-- Handle -->
+          <circle class="dial-handle" id="dial-handle"
+            cx="${cx + r * Math.cos((valueAngle - 90) * Math.PI / 180)}"
+            cy="${cy + r * Math.sin((valueAngle - 90) * Math.PI / 180)}"
+            r="14" fill="var(--primary)" stroke="var(--bg)" stroke-width="3"
+            style="filter:drop-shadow(0 2px 6px rgba(0,0,0,0.4))"/>
+        </svg>
+        <div class="dial-center">
+          <div class="target-temp" id="dial-target">${target.toFixed(1).replace('.', ',')}\u00B0</div>
+          <div class="target-label">Hedef</div>
+          <div class="current-temp" id="dial-current">${current != null ? fmtTemp(current) : '--'}</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderTicks(cx, cy, r, startA, endA, minT, maxT) {
+  let ticks = '';
+  for (let t = minT; t <= maxT; t++) {
+    const pct = (t - minT) / (maxT - minT);
+    const angle = startA + pct * (endA - startA);
+    const rad = (angle - 90) * Math.PI / 180;
+    const isMajor = t % 5 === 0;
+    const innerR = r - (isMajor ? 22 : 16);
+    const outerR = r - 12;
+    const x1 = cx + innerR * Math.cos(rad);
+    const y1 = cy + innerR * Math.sin(rad);
+    const x2 = cx + outerR * Math.cos(rad);
+    const y2 = cy + outerR * Math.sin(rad);
+    ticks += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${isMajor ? 'var(--on-surface-var)' : 'var(--outline-var)'}" stroke-width="${isMajor ? 2 : 1}"/>`;
+    if (isMajor) {
+      const labelR = r - 30;
+      const lx = cx + labelR * Math.cos(rad);
+      const ly = cy + labelR * Math.sin(rad);
+      ticks += `<text x="${lx}" y="${ly}" fill="var(--on-surface-var)" font-size="10" text-anchor="middle" dominant-baseline="central">${t}</text>`;
+    }
+  }
+  return ticks;
+}
+
+function describeArc(cx, cy, r, startAngle, endAngle) {
+  const start = polarToCartesian(cx, cy, r, endAngle - 90);
+  const end = polarToCartesian(cx, cy, r, startAngle - 90);
+  const largeArc = endAngle - startAngle > 180 ? 1 : 0;
+  return `M ${start.x} ${start.y} A ${r} ${r} 0 ${largeArc} 0 ${end.x} ${end.y}`;
+}
+
+function polarToCartesian(cx, cy, r, angleDeg) {
+  const rad = angleDeg * Math.PI / 180;
+  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+}
+
+/* ===== DIAL INTERACTION ===== */
+let dialDragging = false;
+let dialDebounce = null;
+
+function initDial() {
+  const dialEl = $('#dial');
+  const svgEl = $('#dial-svg');
+  if (!dialEl || !svgEl) return;
+
+  const onMove = (clientX, clientY) => {
+    if (!dialDragging) return;
+    const rect = svgEl.getBoundingClientRect();
+    const scaleX = 260 / rect.width;
+    const scaleY = 260 / rect.height;
+    const x = (clientX - rect.left) * scaleX - 130;
+    const y = (clientY - rect.top) * scaleY - 130;
+    let angle = Math.atan2(y, x) * 180 / Math.PI + 90;
+    if (angle < 0) angle += 360;
+
+    const startAngle = 135, endAngle = 405;
+    if (angle < startAngle && angle > endAngle - 360) return;
+    let mappedAngle = angle;
+    if (angle < startAngle) mappedAngle = angle + 360;
+    if (mappedAngle < startAngle || mappedAngle > endAngle) return;
+
+    const pct = (mappedAngle - startAngle) / (endAngle - startAngle);
+    let temp = 15 + pct * 15;
+    temp = Math.round(temp * 10) / 10;  // 0.1 hassasiyet
+    temp = Math.max(15, Math.min(30, temp));
+
+    S.heatingConfig.targetTemp = temp;
+    updateDialVisual(temp);
+  };
+
+  const startDrag = (e) => {
+    dialDragging = true;
+    e.preventDefault();
+  };
+  const endDrag = () => {
+    if (dialDragging) {
+      dialDragging = false;
+      clearTimeout(dialDebounce);
+      dialDebounce = setTimeout(() => {
+        saveTargetTemp(S.heatingConfig.targetTemp);
+      }, 500);
+    }
+  };
+
+  // Mouse events
+  svgEl.addEventListener('mousedown', startDrag);
+  document.addEventListener('mousemove', (e) => onMove(e.clientX, e.clientY));
+  document.addEventListener('mouseup', endDrag);
+
+  // Touch events
+  svgEl.addEventListener('touchstart', (e) => { startDrag(e); const t = e.touches[0]; onMove(t.clientX, t.clientY); }, { passive: false });
+  document.addEventListener('touchmove', (e) => { if (dialDragging) { e.preventDefault(); const t = e.touches[0]; onMove(t.clientX, t.clientY); } }, { passive: false });
+  document.addEventListener('touchend', endDrag);
+}
+
+function updateDialVisual(temp) {
+  const targetEl = $('#dial-target');
+  if (targetEl) targetEl.textContent = temp.toFixed(1).replace('.', ',') + '\u00B0';
+
+  const handle = $('#dial-handle');
+  const arcValue = $('.arc-value');
+  if (!handle || !arcValue) return;
+
+  const cx = 130, cy = 130, r = 110;
+  const startAngle = 135, endAngle = 405;
+  const pct = (temp - 15) / 15;
+  const valueAngle = startAngle + pct * (endAngle - startAngle);
+  const rad = (valueAngle - 90) * Math.PI / 180;
+
+  handle.setAttribute('cx', cx + r * Math.cos(rad));
+  handle.setAttribute('cy', cy + r * Math.sin(rad));
+  arcValue.setAttribute('d', describeArc(cx, cy, r, startAngle, valueAngle));
+}
+
+function updateDialCurrentTemp() {
+  const el = $('#dial-current');
+  if (el) {
+    const avg = getAvgTemp();
+    el.textContent = avg != null ? fmtTemp(avg) : '--';
+  }
+}
+
+function updateDialHeating() {
+  const dialEl = $('#dial');
+  if (dialEl) {
+    dialEl.classList.toggle('heating', S.boilerStatus.active);
+  }
+}
+
+async function saveTargetTemp(temp) {
+  const res = await apiPut('/config/heating', { target_temp: temp });
+  if (res.success) {
+    showSnack('Hedef: ' + fmtTemp(temp));
+  }
+}
+
+/* ===== PROFILES ===== */
+const DEFAULT_PROFILES = [
+  { id: 'eco', name: 'ECO', icon: 'eco', targetTemp: 18, strategy: 'weighted_avg', hysteresis: 0.5, color: '#4CAF50' },
+  { id: 'comfort', name: 'COMFORT', icon: 'weekend', targetTemp: 22, strategy: 'weighted_avg', hysteresis: 0.3, color: '#FF9800' },
+  { id: 'user', name: 'KULLANICI', icon: 'person', targetTemp: 20, strategy: 'weighted_avg', hysteresis: 0.3, color: '#2196F3' },
+];
+
+function getProfiles() {
+  if (S.profiles.length === 0) {
+    const saved = localStorage.getItem('tonbil_profiles');
+    S.profiles = saved ? JSON.parse(saved) : JSON.parse(JSON.stringify(DEFAULT_PROFILES));
+    S.activeProfile = localStorage.getItem('tonbil_active_profile') || null;
+  }
+  return S.profiles;
+}
+
+function saveProfiles() {
+  localStorage.setItem('tonbil_profiles', JSON.stringify(S.profiles));
+}
+
+window.activateProfile = async function(profileId) {
+  const profiles = getProfiles();
+  const p = profiles.find(pr => pr.id === profileId);
+  if (!p) return;
+
+  S.activeProfile = profileId;
+  localStorage.setItem('tonbil_active_profile', profileId);
+  S.heatingConfig.targetTemp = p.targetTemp;
+  S.heatingConfig.mode = 'auto';
+  S.heatingConfig.strategy = p.strategy;
+  S.heatingConfig.hysteresis = p.hysteresis;
+
+  const res = await apiPut('/config/heating', {
+    target_temp: p.targetTemp,
+    mode: 'auto',
+    strategy: p.strategy,
+    hysteresis: p.hysteresis,
+  });
+  if (res.success) {
+    showSnack(p.name + ' profili aktif — ' + p.targetTemp.toFixed(1) + '°C');
+  }
+  render();
+};
+
+async function setMode(mode) {
+  if (mode === 'manual') {
+    S.heatingConfig.mode = 'manual';
+    S.activeProfile = null;
+    localStorage.removeItem('tonbil_active_profile');
+    const res = await apiPut('/config/heating', { mode: 'manual' });
+    if (res.success) showSnack('Manuel mod aktif');
+    render();
+  }
+}
+
+/* ===== PROFILE SETTINGS PAGE ===== */
+function renderProfiles() {
+  const profiles = getProfiles();
+  const STRATEGY_LABELS = {
+    'weighted_avg': 'Agirlikli Ortalama',
+    'coldest_room': 'En Soguk Oda',
+    'single_room': 'Tek Referans Oda',
+  };
+  const ICON_OPTIONS = [
+    { key: 'eco', label: 'Yaprak' }, { key: 'weekend', label: 'Koltuk' },
+    { key: 'person', label: 'Kisi' }, { key: 'nightlight', label: 'Gece' },
+    { key: 'wb_sunny', label: 'Gunes' }, { key: 'ac_unit', label: 'Kar' },
+    { key: 'whatshot', label: 'Ates' }, { key: 'home', label: 'Ev' },
+    { key: 'child_care', label: 'Cocuk' }, { key: 'pets', label: 'Evcil' },
+    { key: 'fitness_center', label: 'Spor' }, { key: 'local_cafe', label: 'Kafe' },
+  ];
+
+  return `
+    <div class="fade-in">
+      <div class="section-title">
+        <span class="material-icons-round" style="vertical-align:middle;margin-right:4px">tune</span>
+        Profil Ayarlari
+      </div>
+      <div style="font-size:13px;color:var(--on-surface-var);margin-bottom:16px">
+        Her profil icin hedef sicaklik, strateji ve histerezis belirleyin. Dashboard'dan tek tikla aktif edin.
+      </div>
+
+      ${profiles.map((p, idx) => `
+        <div class="profile-card" style="border-left:3px solid ${p.color || 'var(--primary)'}">
+          <div class="profile-header">
+            <span class="material-icons-round" style="font-size:24px;color:${p.color || 'var(--primary)'}">${p.icon}</span>
+            <input type="text" class="profile-name-input" value="${p.name}" onchange="updateProfileField(${idx},'name',this.value)" style="flex:1;background:transparent;border:none;font-size:16px;font-weight:500;color:var(--on-surface);padding:4px 8px">
+            ${profiles.length > 2 ? `<button class="btn" style="padding:4px;color:var(--error)" onclick="deleteProfile(${idx})" title="Sil"><span class="material-icons-round" style="font-size:18px">delete</span></button>` : ''}
+          </div>
+
+          <div class="profile-fields">
+            <div class="profile-field">
+              <label>Hedef Sicaklik</label>
+              <div style="display:flex;align-items:center;gap:8px">
+                <input type="range" min="15" max="30" step="0.1" value="${p.targetTemp}"
+                  oninput="updateProfileField(${idx},'targetTemp',parseFloat(this.value));this.nextElementSibling.textContent=parseFloat(this.value).toFixed(1)+'°C'"
+                  style="flex:1">
+                <span style="min-width:50px;font-size:16px;font-weight:500;color:var(--primary)">${p.targetTemp.toFixed(1)}°C</span>
+              </div>
+            </div>
+
+            <div class="profile-field">
+              <label>Histerezis (°C)</label>
+              <input type="number" min="0.1" max="2.0" step="0.1" value="${p.hysteresis}"
+                onchange="updateProfileField(${idx},'hysteresis',parseFloat(this.value))"
+                style="width:80px;text-align:center">
+              <span style="font-size:11px;color:var(--on-surface-var);margin-left:8px">
+                Acilir: ${(p.targetTemp - p.hysteresis).toFixed(1)}°C | Kapanir: ${(p.targetTemp + p.hysteresis).toFixed(1)}°C
+              </span>
+            </div>
+
+            <div class="profile-field">
+              <label>Strateji</label>
+              <select onchange="updateProfileField(${idx},'strategy',this.value)">
+                ${Object.entries(STRATEGY_LABELS).map(([k,v]) => `<option value="${k}" ${p.strategy === k ? 'selected' : ''}>${v}</option>`).join('')}
+              </select>
+            </div>
+
+            <div class="profile-field">
+              <label>Ikon</label>
+              <div class="profile-icon-grid">
+                ${ICON_OPTIONS.map(io => `
+                  <div class="icon-pick-sm ${p.icon === io.key ? 'selected' : ''}"
+                    onclick="updateProfileField(${idx},'icon','${io.key}');render()" title="${io.label}">
+                    <span class="material-icons-round">${io.key}</span>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+        </div>
+      `).join('')}
+
+      <button class="btn btn-outline btn-block" style="margin-top:12px" onclick="addProfile()">
+        <span class="material-icons-round">add</span> Yeni Profil Ekle
+      </button>
+
+      <button class="btn btn-primary btn-block" style="margin-top:8px" onclick="navigate('dashboard')">
+        <span class="material-icons-round">arrow_back</span> Ana Sayfaya Don
+      </button>
+    </div>
+  `;
+}
+
+window.updateProfileField = function(idx, field, value) {
+  const profiles = getProfiles();
+  if (profiles[idx]) {
+    profiles[idx][field] = value;
+    saveProfiles();
+  }
+};
+
+window.deleteProfile = function(idx) {
+  const profiles = getProfiles();
+  if (profiles.length <= 2) { showSnack('En az 2 profil olmali'); return; }
+  const removed = profiles.splice(idx, 1)[0];
+  if (S.activeProfile === removed.id) {
+    S.activeProfile = null;
+    localStorage.removeItem('tonbil_active_profile');
+  }
+  saveProfiles();
+  render();
+  showSnack('Profil silindi');
+};
+
+window.addProfile = function() {
+  const profiles = getProfiles();
+  if (profiles.length >= 6) { showSnack('En fazla 6 profil'); return; }
+  const id = 'profile_' + Date.now();
+  profiles.push({
+    id, name: 'Yeni Profil', icon: 'home', targetTemp: 20,
+    strategy: 'weighted_avg', hysteresis: 0.3, color: '#9C27B0',
+  });
+  saveProfiles();
+  render();
+  showSnack('Profil eklendi');
+};
+
+/* ===== SPARKLINE (Dashboard 24h) ===== */
+async function drawSparkline() {
+  const canvas = $('#sparkline-canvas');
+  const statsEl = $('#sparkline-stats');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth;
+  const h = 100;
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
+  ctx.scale(dpr, dpr);
+
+  const dev = S.devices.find(d => d.type === 'sensor' || d.type === 'combo');
+  if (!dev) {
+    ctx.fillStyle = '#938F99'; ctx.font = '12px Roboto'; ctx.textAlign = 'center';
+    ctx.fillText('Sensor bekleniyor...', w / 2, h / 2);
+    return;
+  }
+
+  const res = await apiGet('/sensors/history?device_id=' + dev.device_id + '&range=24h');
+  if (!res.success || !res.data || res.data.length < 2) {
+    ctx.fillStyle = '#938F99'; ctx.font = '12px Roboto'; ctx.textAlign = 'center';
+    ctx.fillText('Henuz yeterli veri yok...', w / 2, h / 2);
+    return;
+  }
+
+  const data = res.data;
+  const temps = data.map(d => d.temperature).filter(t => t != null);
+  const hums = data.map(d => d.humidity).filter(h => h != null);
+  const times = data.map(d => d.time);
+
+  if (temps.length < 2) return;
+
+  // Istatistikler
+  const minT = Math.min(...temps), maxT = Math.max(...temps);
+  const avgT = temps.reduce((a,b) => a+b, 0) / temps.length;
+  const minH = hums.length ? Math.min(...hums) : null;
+  const maxH = hums.length ? Math.max(...hums) : null;
+  const avgH = hums.length ? hums.reduce((a,b) => a+b, 0) / hums.length : null;
+
+  if (statsEl) {
+    statsEl.innerHTML = `
+      <div style="flex:1;text-align:center;padding:6px;background:var(--surface2);border-radius:8px">
+        <div style="color:var(--primary);font-size:11px">Sicaklik</div>
+        <div style="font-size:10px;color:var(--on-surface-var)">
+          <span style="color:#4CAF50">▼${minT.toFixed(1)}°</span>
+          <span style="color:var(--on-surface);font-weight:500"> ${avgT.toFixed(1)}° </span>
+          <span style="color:#F44336">▲${maxT.toFixed(1)}°</span>
+        </div>
+      </div>
+      ${avgH != null ? `
+      <div style="flex:1;text-align:center;padding:6px;background:var(--surface2);border-radius:8px">
+        <div style="color:var(--info);font-size:11px">Nem</div>
+        <div style="font-size:10px;color:var(--on-surface-var)">
+          <span style="color:#4CAF50">▼%${minH.toFixed(0)}</span>
+          <span style="color:var(--on-surface);font-weight:500"> %${avgH.toFixed(0)} </span>
+          <span style="color:#F44336">▲%${maxH.toFixed(0)}</span>
+        </div>
+      </div>` : ''}
+    `;
+  }
+
+  // Chart dimensions
+  const padL = 36, padR = 8, padT = 12, padB = 20;
+  const plotW = w - padL - padR;
+  const plotH = h - padT - padB;
+  const tRange = (maxT - minT) || 1;
+  const tMin = minT - 0.5, tMax = maxT + 0.5, tR = tMax - tMin;
+
+  // Y-axis labels (temperature)
+  ctx.fillStyle = '#938F99'; ctx.font = '10px Roboto'; ctx.textAlign = 'right';
+  for (let i = 0; i <= 3; i++) {
+    const v = tMin + (i / 3) * tR;
+    const y = padT + plotH - (i / 3) * plotH;
+    ctx.fillText(v.toFixed(1) + '°', padL - 4, y + 3);
+    ctx.strokeStyle = 'rgba(147,143,153,0.1)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL + plotW, y); ctx.stroke();
+  }
+
+  // X-axis time labels
+  ctx.textAlign = 'center'; ctx.fillStyle = '#938F99';
+  const labelCount = Math.min(temps.length, 6);
+  for (let i = 0; i < labelCount; i++) {
+    const idx = Math.floor(i * (times.length - 1) / (labelCount - 1));
+    const t = new Date(times[idx]);
+    const x = padL + (idx / (temps.length - 1)) * plotW;
+    ctx.fillText(t.getHours().toString().padStart(2,'0') + ':' + t.getMinutes().toString().padStart(2,'0'), x, h - 4);
+  }
+
+  // Temperature line + fill
+  const tempGrad = ctx.createLinearGradient(0, padT, 0, padT + plotH);
+  tempGrad.addColorStop(0, 'rgba(255,182,140,0.25)');
+  tempGrad.addColorStop(1, 'rgba(255,182,140,0)');
+
+  ctx.beginPath();
+  temps.forEach((t, i) => {
+    const x = padL + (i / (temps.length - 1)) * plotW;
+    const y = padT + plotH - ((t - tMin) / tR) * plotH;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  const lastTx = padL + plotW;
+  ctx.lineTo(lastTx, padT + plotH); ctx.lineTo(padL, padT + plotH);
+  ctx.fillStyle = tempGrad; ctx.fill();
+
+  ctx.beginPath();
+  temps.forEach((t, i) => {
+    const x = padL + (i / (temps.length - 1)) * plotW;
+    const y = padT + plotH - ((t - tMin) / tR) * plotH;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.strokeStyle = '#FFB68C'; ctx.lineWidth = 2; ctx.lineJoin = 'round'; ctx.stroke();
+
+  // Humidity line (secondary axis, scaled to 0-100)
+  if (hums.length >= 2) {
+    ctx.beginPath();
+    hums.forEach((h2, i) => {
+      const x = padL + (i / (hums.length - 1)) * plotW;
+      const y = padT + plotH - (h2 / 100) * plotH;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.strokeStyle = 'rgba(140,180,255,0.6)'; ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 3]); ctx.stroke(); ctx.setLineDash([]);
+  }
+
+  // Last point dots
+  const lastTempY = padT + plotH - ((temps[temps.length-1] - tMin) / tR) * plotH;
+  ctx.beginPath(); ctx.arc(lastTx, lastTempY, 4, 0, Math.PI*2);
+  ctx.fillStyle = '#FFB68C'; ctx.fill();
+  ctx.strokeStyle = '#1C1B1F'; ctx.lineWidth = 1.5; ctx.stroke();
+
+  // Last value label
+  ctx.fillStyle = '#FFB68C'; ctx.font = 'bold 11px Roboto'; ctx.textAlign = 'right';
+  ctx.fillText(temps[temps.length-1].toFixed(1) + '°', lastTx - 8, lastTempY - 6);
+
+  if (hums.length >= 2) {
+    const lastHumY = padT + plotH - (hums[hums.length-1] / 100) * plotH;
+    ctx.fillStyle = 'rgba(140,180,255,0.8)'; ctx.font = '10px Roboto';
+    ctx.fillText('%' + hums[hums.length-1].toFixed(0), lastTx - 8, lastHumY - 4);
+  }
+
+  // Legend
+  ctx.font = '10px Roboto'; ctx.textAlign = 'left';
+  ctx.fillStyle = '#FFB68C'; ctx.fillRect(padL, h - 10, 10, 2);
+  ctx.fillText('Sicaklik', padL + 14, h - 6);
+  if (hums.length >= 2) {
+    ctx.fillStyle = 'rgba(140,180,255,0.6)'; ctx.fillRect(padL + 70, h - 10, 10, 2);
+    ctx.fillText('Nem', padL + 84, h - 6);
+  }
+}
+
+/* ===== ROOMS VIEW ===== */
+function renderRooms() {
+  return `
+    <div class="fade-in">
+      <div class="section-title">Odalar</div>
+      ${S.rooms.length === 0 ? '<div class="empty-state"><span class="material-icons-round">meeting_room</span><div>Henuz oda yok</div></div>' :
+        S.rooms.map(r => {
+          const s = getSensorForRoom(r.id);
+          const hasData = s && s.temp != null;
+          const cls = hasData ? getRoomTempClass(s.temp, S.heatingConfig.targetTemp) : '';
+          const dev = s ? s.device : null;
+          return `
+            <div class="room-card ${hasData ? '' : 'no-data'}" onclick="openRoomDetail(${r.id})">
+              <div class="room-bar ${cls}"></div>
+              <div class="room-icon"><span class="material-icons-round">${roomIconMap(r.icon)}</span></div>
+              <div class="room-info">
+                <div class="name">
+                  ${esc(r.name)}
+                  <span class="material-icons-round" style="font-size:14px;color:var(--on-surface-var);cursor:pointer;margin-left:4px" onclick="event.stopPropagation();editRoomName(${r.id},'${esc(r.name)}')">edit</span>
+                </div>
+                <div class="detail">
+                  ${hasData ? fmtHum(s.hum) + ' · ' + fmtPres(s.pres) : 'Sensor bekleniyor...'}
+                  ${dev ? ' · ' + esc(dev.name || dev.device_id) : ''}
+                </div>
+                <div class="detail">${hasData && s.ts ? 'Son: ' + fmtDate(s.ts) : ''}</div>
+              </div>
+              <div class="room-temp">
+                ${hasData
+                  ? `<span class="temp">${fmtTempShort(s.temp)}</span>`
+                  : `<span class="temp">--</span>`
+                }
+              </div>
+            </div>
+          `;
+        }).join('')
+      }
+    </div>
+  `;
+}
+
+/* ===== ROOM DETAIL (HISTORY) ===== */
+window.openRoomDetail = function(roomId) {
+  S.selectedRoomDetail = roomId;
+  S.historyRange = '24h';
+  showRoomDetailSheet();
+};
+
+async function showRoomDetailSheet() {
+  const room = S.rooms.find(r => r.id === S.selectedRoomDetail);
+  if (!room) return;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'room-detail-overlay';
+  overlay.id = 'room-detail-overlay';
+  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+
+  overlay.innerHTML = `
+    <div class="room-detail-sheet">
+      <div class="header">
+        <span style="font-size:24px">${room.icon || '🏠'}</span>
+        <h2>${esc(room.name)}</h2>
+        <button onclick="$('#room-detail-overlay').remove()" style="padding:8px">
+          <span class="material-icons-round">close</span>
+        </button>
+      </div>
+      <div class="range-toggle">
+        <button class="${S.historyRange === '24h' ? 'active' : ''}" onclick="changeHistoryRange('24h')">24 Saat</button>
+        <button class="${S.historyRange === '7d' ? 'active' : ''}" onclick="changeHistoryRange('7d')">7 Gun</button>
+      </div>
+      <div id="history-stats" style="display:flex;gap:8px;margin-bottom:8px"></div>
+      <div style="position:relative;height:220px">
+        <canvas id="history-canvas" style="width:100%;height:220px"></canvas>
+      </div>
+      <div id="history-loading" style="text-align:center;padding:20px">
+        <div class="loading-spinner"></div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  await drawHistoryChart();
+}
+
+window.changeHistoryRange = async function(range) {
+  S.historyRange = range;
+  const btns = $$('.range-toggle button');
+  btns.forEach(b => b.classList.toggle('active', b.textContent.trim() === (range === '24h' ? '24 Saat' : '7 Gun')));
+  await drawHistoryChart();
+};
+
+async function drawHistoryChart() {
+  const canvas = $('#history-canvas');
+  const loadingEl = $('#history-loading');
+  if (!canvas) return;
+
+  const room = S.rooms.find(r => r.id === S.selectedRoomDetail);
+  const dev = S.devices.find(d => d.room_id === S.selectedRoomDetail && (d.type === 'sensor' || d.type === 'combo'));
+  if (!dev) {
+    if (loadingEl) loadingEl.innerHTML = '<div style="color:var(--on-surface-var)">Bu odada sensor yok</div>';
+    return;
+  }
+
+  const res = await apiGet('/sensors/history?device_id=' + dev.device_id + '&range=' + S.historyRange);
+  if (loadingEl) loadingEl.style.display = 'none';
+
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth;
+  const h = 220;
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
+  ctx.scale(dpr, dpr);
+
+  if (!res.success || !res.data || res.data.length === 0) {
+    ctx.fillStyle = '#938F99'; ctx.font = '13px Roboto'; ctx.textAlign = 'center';
+    ctx.fillText('Gecmis verisi yok', w / 2, h / 2);
+    return;
+  }
+
+  const data = res.data;
+  const temps = data.map(d => d.temperature).filter(t => t != null);
+  const hums = data.map(d => d.humidity).filter(h => h != null);
+  const times = data.map(d => d.time);
+
+  // Istatistikleri goster
+  const statsEl = $('#history-stats');
+  if (statsEl && temps.length > 0) {
+    const minT = Math.min(...temps), maxT = Math.max(...temps);
+    const avgT = temps.reduce((a,b)=>a+b,0)/temps.length;
+    const minH = hums.length ? Math.min(...hums) : null;
+    const maxH = hums.length ? Math.max(...hums) : null;
+    const avgH = hums.length ? hums.reduce((a,b)=>a+b,0)/hums.length : null;
+    statsEl.innerHTML = `
+      <div style="flex:1;background:var(--surface2);border-radius:8px;padding:8px;text-align:center">
+        <div style="font-size:10px;color:var(--on-surface-var)">Sicaklik</div>
+        <div style="font-size:12px"><span style="color:#4CAF50">▼${minT.toFixed(1)}°</span> <b>${avgT.toFixed(1)}°</b> <span style="color:#F44336">▲${maxT.toFixed(1)}°</span></div>
+      </div>
+      ${avgH != null ? `
+      <div style="flex:1;background:var(--surface2);border-radius:8px;padding:8px;text-align:center">
+        <div style="font-size:10px;color:var(--on-surface-var)">Nem</div>
+        <div style="font-size:12px"><span style="color:#4CAF50">▼%${minH.toFixed(0)}</span> <b>%${avgH.toFixed(0)}</b> <span style="color:#F44336">▲%${maxH.toFixed(0)}</span></div>
+      </div>` : ''}
+    `;
+  }
+
+  if (temps.length < 2) return;
+
+  const minT = Math.min(...temps) - 1;
+  const maxT = Math.max(...temps) + 1;
+  const rangeT = maxT - minT || 1;
+  const padX = 40, padY = 20, padBottom = 30;
+  const plotW = w - padX - 16;
+  const plotH = h - padY - padBottom;
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(147,143,153,0.2)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = padY + (i / 4) * plotH;
+    ctx.beginPath();
+    ctx.moveTo(padX, y);
+    ctx.lineTo(padX + plotW, y);
+    ctx.stroke();
+    const tempLabel = (maxT - (i / 4) * rangeT).toFixed(1).replace('.', ',') + '\u00B0';
+    ctx.fillStyle = '#938F99';
+    ctx.font = '10px Roboto';
+    ctx.textAlign = 'right';
+    ctx.fillText(tempLabel, padX - 6, y + 4);
+  }
+
+  // Temperature line
+  const grad = ctx.createLinearGradient(0, padY, 0, h);
+  grad.addColorStop(0, 'rgba(255,182,140,0.2)');
+  grad.addColorStop(1, 'rgba(255,182,140,0)');
+
+  ctx.beginPath();
+  temps.forEach((t, i) => {
+    const x = padX + (i / (temps.length - 1)) * plotW;
+    const y = padY + plotH - ((t - minT) / rangeT) * plotH;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  });
+  const lastLineX = padX + plotW;
+  ctx.lineTo(lastLineX, padY + plotH);
+  ctx.lineTo(padX, padY + plotH);
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  ctx.beginPath();
+  temps.forEach((t, i) => {
+    const x = padX + (i / (temps.length - 1)) * plotW;
+    const y = padY + plotH - ((t - minT) / rangeT) * plotH;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  });
+  ctx.strokeStyle = '#FFB68C';
+  ctx.lineWidth = 2;
+  ctx.lineJoin = 'round';
+  ctx.stroke();
+
+  // Humidity line (if available)
+  if (hums.length >= 2) {
+    ctx.beginPath();
+    hums.forEach((h, i) => {
+      const x = padX + (i / (hums.length - 1)) * plotW;
+      const y = padY + plotH - (h / 100) * plotH;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    });
+    ctx.strokeStyle = 'rgba(140,180,255,0.5)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Time labels
+  ctx.fillStyle = '#938F99';
+  ctx.font = '10px Roboto';
+  ctx.textAlign = 'center';
+  const labelCount = 5;
+  for (let i = 0; i <= labelCount; i++) {
+    const idx = Math.round((i / labelCount) * (data.length - 1));
+    const x = padX + (idx / (data.length - 1)) * plotW;
+    const d = data[idx];
+    if (d && d.time) {
+      const t = new Date(d.time);
+      ctx.fillText(t.getHours().toString().padStart(2, '0') + ':' + t.getMinutes().toString().padStart(2, '0'), x, h - 8);
+    }
+  }
+
+  // Legend
+  ctx.fillStyle = '#FFB68C';
+  ctx.fillRect(padX, h - padBottom + 14, 12, 3);
+  ctx.fillStyle = '#938F99';
+  ctx.font = '10px Roboto';
+  ctx.textAlign = 'left';
+  ctx.fillText('Sicaklik', padX + 16, h - padBottom + 18);
+
+  if (hums.length >= 2) {
+    ctx.fillStyle = 'rgba(140,180,255,0.5)';
+    ctx.fillRect(padX + 80, h - padBottom + 14, 12, 3);
+    ctx.fillStyle = '#938F99';
+    ctx.fillText('Nem', padX + 96, h - padBottom + 18);
+  }
+
+  // Son noktalara deger etiketi
+  if (temps.length > 0) {
+    const lastTempY2 = padY + plotH - ((temps[temps.length-1] - minT) / rangeT) * plotH;
+    ctx.beginPath(); ctx.arc(padX + plotW, lastTempY2, 4, 0, Math.PI*2);
+    ctx.fillStyle = '#FFB68C'; ctx.fill();
+    ctx.strokeStyle = '#1C1B1F'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.fillStyle = '#FFB68C'; ctx.font = 'bold 11px Roboto'; ctx.textAlign = 'right';
+    ctx.fillText(temps[temps.length-1].toFixed(1) + '°', padX + plotW - 6, lastTempY2 - 6);
+  }
+  if (hums.length > 0) {
+    const lastHumY2 = padY + plotH - (hums[hums.length-1] / 100) * plotH;
+    ctx.beginPath(); ctx.arc(padX + plotW, lastHumY2, 3, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(140,180,255,0.8)'; ctx.fill();
+    ctx.font = '10px Roboto'; ctx.textAlign = 'right';
+    ctx.fillText('%' + hums[hums.length-1].toFixed(0), padX + plotW - 6, lastHumY2 - 4);
+  }
+}
+
+/* ===== EDIT ROOM NAME ===== */
+window.editRoomName = function(id, currentName) {
+  const room = S.rooms.find(r => r.id === id);
+  const currentIcon = room ? room.icon : 'room';
+  showModal('Oda Duzenle', `
+    <div class="field">
+      <label>Oda Adi</label>
+      <input type="text" id="modal-room-name" value="${currentName}">
+    </div>
+    <div class="field">
+      ${renderIconPicker(currentIcon, 'modal-room-icon')}
+    </div>
+  `, async () => {
+    const name = $('#modal-room-name').value.trim();
+    const icon = $('#modal-room-icon').value.trim();
+    if (!name) return;
+    const res = await apiPut('/rooms/' + id, { name, icon });
+    if (res.success) {
+      const r = S.rooms.find(r => r.id === id);
+      if (r) { r.name = name; r.icon = icon; }
+      showSnack('Oda guncellendi');
+      render();
+    } else {
+      showSnack(res.message || 'Hata olustu');
+    }
+  });
+};
+
+/* ===== DEVICES VIEW ===== */
+function renderDevices() {
+  return `
+    <div class="fade-in">
+      <div class="section-title">Cihazlar</div>
+      ${S.devices.length === 0
+        ? '<div class="empty-state"><span class="material-icons-round">devices_other</span><div>Henuz cihaz yok</div></div>'
+        : S.devices.map(d => {
+          const room = S.rooms.find(r => r.id === d.room_id);
+          const isOnline = d.is_online;
+          const hasRelay = d.type === 'relay' || d.type === 'combo';
+          const hasSensor = d.type === 'sensor' || d.type === 'combo';
+          const isRelay = hasRelay;
+          const relayOn = hasRelay && S.boilerStatus.active;
+          return `
+            <div class="device-item fade-in" style="${isRelay ? 'border-left:3px solid ' + (relayOn ? 'var(--primary)' : 'var(--outline-var)') : ''}">
+              <div class="device-header">
+                <div class="device-dot ${isOnline ? 'online' : 'offline'}"></div>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span class="material-icons-round" style="font-size:20px;color:${hasRelay ? 'var(--primary)' : 'var(--info)'}">${d.type === 'combo' ? 'device_thermostat' : hasRelay ? 'local_fire_department' : 'thermostat'}</span>
+                  <div class="device-name">${esc(d.name || d.device_id)}</div>
+                </div>
+                <span class="badge ${isOnline ? 'badge-success' : 'badge-error'}">${isOnline ? 'Online' : 'Offline'}</span>
+              </div>
+              ${isRelay ? `
+              <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:12px 16px;margin:8px 0;display:flex;align-items:center;justify-content:space-between">
+                <div style="display:flex;align-items:center;gap:10px">
+                  <span class="material-icons-round" style="font-size:32px;color:${relayOn ? '#FF9800' : 'var(--outline)'}">${relayOn ? 'whatshot' : 'power_settings_new'}</span>
+                  <div>
+                    <div style="font-size:18px;font-weight:500;color:${relayOn ? 'var(--primary)' : 'var(--on-surface-var)'}">${relayOn ? 'Kombi ACIK' : 'Kombi KAPALI'}</div>
+                    <div style="font-size:12px;color:var(--on-surface-var)">Mod: ${S.heatingConfig.mode === 'auto' ? 'Otomatik' : 'Manuel'} | Hedef: ${S.heatingConfig.targetTemp.toFixed(1)}°C</div>
+                  </div>
+                </div>
+                <button class="btn ${relayOn ? 'btn-error' : 'btn-primary'}" style="padding:8px 16px;font-size:13px;min-width:80px" onclick="toggleRelay()">
+                  <span class="material-icons-round" style="font-size:16px">${relayOn ? 'power_off' : 'power'}</span>
+                  ${relayOn ? 'KAPAT' : 'AC'}
+                </button>
+              </div>
+              <div style="display:flex;gap:16px;font-size:12px;color:var(--on-surface-var);padding:0 4px">
+                <span>Bugun: ${fmtMinutes(S.boilerStatus.runtimeToday)}</span>
+                <span>Strateji: ${S.heatingConfig.strategy === 'weighted_avg' ? 'Agirlikli Ort.' : S.heatingConfig.strategy === 'coldest_room' ? 'En Soguk Oda' : 'Tek Oda'}</span>
+              </div>
+              ` : ''}
+              <div class="device-meta">
+                <span><span class="material-icons-round">fingerprint</span>${esc(d.device_id)}</span>
+                <span><span class="material-icons-round">category</span>${d.type === 'combo' ? 'Sensor + Role' : hasRelay ? 'Role Karti' : 'Sicaklik Sensoru'}</span>
+                ${room ? `<span><span class="material-icons-round">meeting_room</span>${esc(room.name)}</span>` : ''}
+                ${d.firmware_version ? `<span><span class="material-icons-round">system_update</span>v${esc(d.firmware_version)}</span>` : ''}
+                ${d.last_seen ? `<span><span class="material-icons-round">schedule</span>${fmtDate(d.last_seen)}</span>` : ''}
+              </div>
+              <div class="device-actions">
+                <button class="btn btn-outline" style="padding:8px 14px;font-size:13px" onclick="editDevice('${esc(d.device_id)}','${esc(d.name || d.device_id)}',${d.room_id || 'null'})">
+                  <span class="material-icons-round" style="font-size:16px">edit</span> Duzenle
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('')
+      }
+    </div>
+  `;
+}
+
+window.editDevice = function(id, currentName, currentRoomId) {
+  const roomOptions = S.rooms.map(r =>
+    `<option value="${r.id}" ${r.id === currentRoomId ? 'selected' : ''}>${esc(r.name)}</option>`
+  ).join('');
+
+  showModal('Cihaz Duzenle', `
+    <div class="field">
+      <label>Cihaz Adi</label>
+      <input type="text" id="modal-device-name" value="${currentName}">
+    </div>
+    <div class="field">
+      <label>Oda</label>
+      <select id="modal-device-room">
+        <option value="">Atanmamis</option>
+        ${roomOptions}
+      </select>
+    </div>
+  `, async () => {
+    const name = $('#modal-device-name').value.trim();
+    const roomId = $('#modal-device-room').value;
+    const body = {};
+    if (name) body.name = name;
+    if (roomId) body.room_id = parseInt(roomId);
+    const res = await apiPut('/devices/' + id, body);
+    if (res.success) {
+      const d = S.devices.find(d => d.id === id);
+      if (d) { if (name) d.name = name; if (roomId) d.room_id = parseInt(roomId); }
+      showSnack('Cihaz guncellendi');
+      render();
+    } else {
+      showSnack(res.message || 'Hata olustu');
+    }
+  });
+};
+
+/* ===== SCHEDULE VIEW ===== */
+const DAY_NAMES = ['Pzt', 'Sal', 'Car', 'Per', 'Cum', 'Cmt', 'Paz'];
+const DAY_FULL = ['Pazartesi', 'Sali', 'Carsamba', 'Persembe', 'Cuma', 'Cumartesi', 'Pazar'];
+
+function renderSchedule() {
+  const day = S.selectedDay;
+  const dayEntries = S.schedules
+    .filter(e => e.dayOfWeek === day)
+    .sort((a, b) => a.hour * 60 + a.minute - (b.hour * 60 + b.minute));
+
+  return `
+    <div class="fade-in">
+      <div class="section-title">Haftalik Program</div>
+      <div class="day-tabs">
+        ${DAY_NAMES.map((d, i) => `
+          <div class="day-tab ${i === day ? 'active' : ''}" onclick="selectDay(${i})">${d}</div>
+        `).join('')}
+      </div>
+      ${renderTimeline(dayEntries)}
+      <div class="section-title">${DAY_FULL[day]} - Zaman Bloklari</div>
+      ${dayEntries.length === 0
+        ? '<div class="empty-state" style="padding:20px"><span class="material-icons-round">event_busy</span><div>Bu gun icin program yok</div></div>'
+        : dayEntries.map((e, idx) => `
+          <div class="schedule-entry">
+            <div class="time">${String(e.hour).padStart(2, '0')}:${String(e.minute).padStart(2, '0')}</div>
+            <div class="temp">${fmtTempShort(e.targetTemp)}</div>
+            <div class="toggle ${e.enabled ? 'on' : ''}" onclick="toggleScheduleEntry(${e.id})"></div>
+            <button class="del-btn" onclick="deleteScheduleEntry(${e.id})">
+              <span class="material-icons-round">delete_outline</span>
+            </button>
+          </div>
+        `).join('')
+      }
+      <div class="schedule-actions">
+        <button class="btn btn-primary" onclick="addScheduleEntry()">
+          <span class="material-icons-round">add</span> Blok Ekle
+        </button>
+        <button class="btn btn-outline" onclick="copyToAllDays()">
+          <span class="material-icons-round">copy_all</span> Tum Gunlere Kopyala
+        </button>
+        <button class="btn btn-primary" onclick="saveSchedules()">
+          <span class="material-icons-round">save</span> Kaydet
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function renderTimeline(entries) {
+  if (entries.length === 0) {
+    return '<div class="timeline-bar"><div class="timeline-seg" style="flex:1;background:var(--outline-var)">Program yok</div></div>';
+  }
+  let segs = '';
+  const sorted = [...entries].filter(e => e.enabled);
+  if (sorted.length === 0) {
+    return '<div class="timeline-bar"><div class="timeline-seg" style="flex:1;background:var(--outline-var)">Tumu devre disi</div></div>';
+  }
+
+  for (let i = 0; i < sorted.length; i++) {
+    const start = sorted[i].hour * 60 + sorted[i].minute;
+    const end = i < sorted.length - 1 ? sorted[i + 1].hour * 60 + sorted[i + 1].minute : 1440;
+    const dur = end - start;
+    const pct = (dur / 1440) * 100;
+    const temp = sorted[i].targetTemp;
+    const color = temp <= 18 ? '#6EA8FE' : temp <= 21 ? '#A8DAB5' : temp <= 24 ? '#FFB68C' : '#FF6B6B';
+
+    // Gap before first
+    if (i === 0 && start > 0) {
+      segs += `<div class="timeline-seg" style="flex:${start / 1440 * 100};background:var(--outline-var)"></div>`;
+    }
+    segs += `<div class="timeline-seg" style="flex:${pct};background:${color}">${fmtTempShort(temp)}</div>`;
+  }
+  return `<div class="timeline-bar">${segs}</div>`;
+}
+
+window.selectDay = function(d) { S.selectedDay = d; render(); };
+
+window.toggleScheduleEntry = function(id) {
+  const e = S.schedules.find(s => s.id === id);
+  if (e) e.enabled = !e.enabled;
+  render();
+};
+
+window.deleteScheduleEntry = function(id) {
+  S.schedules = S.schedules.filter(s => s.id !== id);
+  render();
+};
+
+window.addScheduleEntry = function() {
+  showModal('Zaman Bloku Ekle', `
+    <div class="field">
+      <label>Saat</label>
+      <input type="time" id="modal-sched-time" value="08:00">
+    </div>
+    <div class="field">
+      <label>Hedef Sicaklik</label>
+      <input type="number" id="modal-sched-temp" value="22" min="15" max="30" step="0.1">
+    </div>
+  `, () => {
+    const time = $('#modal-sched-time').value;
+    const temp = parseFloat($('#modal-sched-temp').value);
+    if (!time || isNaN(temp)) return;
+    const [h, m] = time.split(':').map(Number);
+    const newId = Date.now();
+    S.schedules.push({
+      id: newId,
+      dayOfWeek: S.selectedDay,
+      hour: h,
+      minute: m,
+      targetTemp: temp,
+      enabled: true,
+    });
+    render();
+  });
+};
+
+window.copyToAllDays = function() {
+  const dayEntries = S.schedules.filter(e => e.dayOfWeek === S.selectedDay);
+  if (dayEntries.length === 0) { showSnack('Kopyalanacak blok yok'); return; }
+  // Remove entries from other days
+  S.schedules = S.schedules.filter(e => e.dayOfWeek === S.selectedDay);
+  // Copy to all other days
+  for (let d = 0; d < 7; d++) {
+    if (d === S.selectedDay) continue;
+    dayEntries.forEach(e => {
+      S.schedules.push({
+        ...e,
+        id: Date.now() + Math.random(),
+        dayOfWeek: d,
+      });
+    });
+  }
+  showSnack('Tum gunlere kopyalandi');
+  render();
+};
+
+window.saveSchedules = async function() {
+  const res = await apiPut('/config/schedules', S.schedules);
+  if (res.success) {
+    showSnack('Program kaydedildi');
+  } else {
+    showSnack(res.message || 'Kaydetme basarisiz');
+  }
+};
+
+/* ===== SETTINGS VIEW ===== */
+function renderSettings() {
+  const cfg = S.heatingConfig;
+  return `
+    <div class="fade-in">
+      <div class="section-title">Ayarlar</div>
+
+      <!-- Isitma -->
+      <div class="settings-group">
+        <div class="settings-group-header" onclick="toggleSettingsGroup(this)">
+          <span class="material-icons-round">local_fire_department</span>
+          <span class="title">Isitma Ayarlari</span>
+          <span class="material-icons-round arrow">expand_more</span>
+        </div>
+        <div class="settings-group-body" id="sg-heating">
+          <div class="setting-row">
+            <span class="label">Hedef Sicaklik</span>
+            <span class="value" id="setting-target-val">${fmtTempShort(cfg.targetTemp)}</span>
+            <input type="range" min="15" max="30" step="0.1" value="${cfg.targetTemp}" oninput="settingSlider('target',this.value)">
+          </div>
+          <div class="setting-row">
+            <span class="label">Histerezis</span>
+            <input type="number" min="0.1" max="2.0" step="0.1" value="${cfg.hysteresis}" id="setting-hysteresis" style="width:70px;text-align:center">
+          </div>
+          <div class="setting-row">
+            <span class="label">Min. Cevrim (dk) <span style="font-size:10px;color:var(--on-surface-var)">0 = gecikme yok</span></span>
+            <input type="number" min="0" max="15" step="1" value="${cfg.minCycleMin}" id="setting-mincycle" style="width:70px;text-align:center">
+          </div>
+          <div class="setting-row">
+            <span class="label">Strateji</span>
+            <select id="setting-strategy">
+              <option value="weighted_avg" ${cfg.strategy === 'weighted_avg' ? 'selected' : ''}>Agirlikli Ort.</option>
+              <option value="coldest_room" ${cfg.strategy === 'coldest_room' ? 'selected' : ''}>En Soguk Oda</option>
+              <option value="single_room" ${cfg.strategy === 'single_room' ? 'selected' : ''}>Tek Oda</option>
+            </select>
+          </div>
+          <button class="btn btn-primary btn-block" style="margin-top:12px" onclick="saveHeatingSettings()">
+            <span class="material-icons-round">save</span> Kaydet
+          </button>
+        </div>
+      </div>
+
+      <!-- Radyator Su Sicakligi -->
+      <div class="settings-group">
+        <div class="settings-group-header" onclick="toggleSettingsGroup(this)">
+          <span class="material-icons-round">thermostat</span>
+          <span class="title">Radyator Su Sicakligi</span>
+          <span class="material-icons-round arrow">expand_more</span>
+        </div>
+        <div class="settings-group-body" id="sg-flow">
+          <div style="font-size:12px;color:var(--on-surface-var);margin-bottom:12px">Kombinin uzerinden ayarladiginiz radyator su sicakligi. Dusuk sicaklik = yogusmali verim = tasarruf.</div>
+          <div class="setting-row">
+            <span class="label">Su Sicakligi</span>
+            <span class="value" id="flow-temp-val" style="font-size:20px;font-weight:500;color:var(--primary)">${cfg.flow_temp || cfg.flowTemp || 60}°C</span>
+            <input type="range" min="35" max="80" step="5" value="${cfg.flow_temp || cfg.flowTemp || 60}" id="setting-flow-temp" oninput="$('#flow-temp-val').textContent=this.value+'°C'">
+          </div>
+          <div id="flow-temp-info" style="font-size:12px;color:var(--on-surface-var);margin:8px 0"></div>
+          <button class="btn btn-primary btn-block" style="margin-top:8px" onclick="saveFlowTemp()">
+            <span class="material-icons-round">save</span> Kaydet
+          </button>
+        </div>
+      </div>
+
+      <!-- Ev Bilgileri -->
+      <div class="settings-group">
+        <div class="settings-group-header" onclick="toggleSettingsGroup(this)">
+          <span class="material-icons-round">home</span>
+          <span class="title">Ev Bilgileri</span>
+          <span class="material-icons-round arrow">expand_more</span>
+        </div>
+        <div class="settings-group-body" id="sg-home">
+          <div class="setting-row">
+            <span class="label">Alan (m2)</span>
+            <input type="number" min="10" max="500" value="${cfg.floorAreaM2}" id="setting-area" style="width:80px;text-align:center">
+          </div>
+          <div class="setting-row">
+            <span class="label">Kombi Gucu (kW)</span>
+            <input type="number" min="10" max="50" value="${cfg.boilerPowerKw}" id="setting-power" style="width:80px;text-align:center">
+          </div>
+          <div class="setting-row">
+            <span class="label">Dogalgaz (TL/m3)</span>
+            <input type="number" min="0.1" max="100" step="0.1" value="${cfg.gasPricePerM3}" id="setting-gas" style="width:80px;text-align:center">
+          </div>
+          <button class="btn btn-primary btn-block" style="margin-top:12px" onclick="saveHomeSettings()">
+            <span class="material-icons-round">save</span> Kaydet
+          </button>
+        </div>
+      </div>
+
+      <!-- Hava Durumu Konum -->
+      <div class="settings-group">
+        <div class="settings-group-header" onclick="toggleSettingsGroup(this)">
+          <span class="material-icons-round">location_on</span>
+          <span class="title">Hava Durumu Konumu</span>
+          <span class="material-icons-round arrow">expand_more</span>
+        </div>
+        <div class="settings-group-body" id="sg-location">
+          <div style="font-size:12px;color:var(--on-surface-var);margin-bottom:12px">Dis hava sicakligi icin konum. Ulke, sehir, ilce veya mahalle arayin.</div>
+          <div id="current-location" style="margin-bottom:12px"></div>
+          <div class="field">
+            <label>Konum Ara</label>
+            <div style="display:flex;gap:8px">
+              <input type="text" id="location-search" placeholder="Ornek: Kadikoy, Istanbul" style="flex:1">
+              <button class="btn btn-primary" style="padding:8px 16px" onclick="searchLocation()">
+                <span class="material-icons-round" style="font-size:18px">search</span>
+              </button>
+            </div>
+          </div>
+          <div id="location-results" style="margin-top:8px"></div>
+        </div>
+      </div>
+
+      <!-- Sistem -->
+      <div class="settings-group">
+        <div class="settings-group-header" onclick="toggleSettingsGroup(this)">
+          <span class="material-icons-round">info</span>
+          <span class="title">Sistem Bilgisi</span>
+          <span class="material-icons-round arrow">expand_more</span>
+        </div>
+        <div class="settings-group-body" id="sg-system">
+          <div class="sys-info">API Durumu: <span class="badge badge-success">Aktif</span></div>
+          <div class="sys-info">WebSocket: <span class="badge ${S.wsConnected ? 'badge-success' : 'badge-error'}">${S.wsConnected ? 'Bagli' : 'Bagli Degil'}</span></div>
+          <div class="sys-info">Cihaz Sayisi: <span>${S.devices.length}</span></div>
+          <div class="sys-info">Oda Sayisi: <span>${S.rooms.length}</span></div>
+          <div class="sys-info">Versiyon: <span>1.0.0</span></div>
+        </div>
+      </div>
+
+      <!-- Odalar (Rooms Menu shortcut) -->
+      <div class="settings-group">
+        <div class="settings-group-header" onclick="toggleSettingsGroup(this)">
+          <span class="material-icons-round">meeting_room</span>
+          <span class="title">Oda Yonetimi</span>
+          <span class="material-icons-round arrow">expand_more</span>
+        </div>
+        <div class="settings-group-body" id="sg-rooms">
+          ${S.rooms.map(r => `
+            <div class="setting-row">
+              <span class="label">${r.icon || '🏠'} ${esc(r.name)}</span>
+              <button class="btn btn-outline" style="padding:6px 10px;font-size:12px" onclick="editRoomName(${r.id},'${esc(r.name)}')">
+                <span class="material-icons-round" style="font-size:14px">edit</span>
+              </button>
+              <button class="btn btn-danger" style="padding:6px 10px;font-size:12px;margin-left:4px" onclick="deleteRoom(${r.id})">
+                <span class="material-icons-round" style="font-size:14px">delete</span>
+              </button>
+            </div>
+          `).join('')}
+          <button class="btn btn-outline btn-block" style="margin-top:12px" onclick="addRoom()">
+            <span class="material-icons-round">add</span> Yeni Oda Ekle
+          </button>
+        </div>
+      </div>
+
+      <!-- Kullanici Yonetimi -->
+      <div class="settings-group">
+        <div class="settings-group-header" onclick="toggleSettingsGroup(this)">
+          <span class="material-icons-round">person</span>
+          <span class="title">Kullanici Yonetimi</span>
+          <span class="material-icons-round arrow">expand_more</span>
+        </div>
+        <div class="settings-group-body" id="sg-user">
+          <div class="sys-info">Kullanici: <span style="color:var(--primary)">${S.user?.email || 'admin@tonbil.local'}</span></div>
+          <div class="sys-info">Ad: <span>${S.user?.displayName || S.user?.display_name || 'Admin'}</span></div>
+          <button class="btn btn-outline btn-block" style="margin-top:12px" onclick="changePassword()">
+            <span class="material-icons-round" style="font-size:16px">lock</span> Sifre Degistir
+          </button>
+        </div>
+      </div>
+
+      <!-- Profil Ayarlari shortcut -->
+      <div class="settings-group">
+        <div class="settings-group-header" onclick="navigate('profiles')">
+          <span class="material-icons-round">tune</span>
+          <span class="title">Profil Ayarlari (ECO / COMFORT / Kullanici)</span>
+          <span class="material-icons-round arrow">chevron_right</span>
+        </div>
+      </div>
+
+      <!-- Analytics shortcut -->
+      <div class="settings-group">
+        <div class="settings-group-header" onclick="navigate('analytics')">
+          <span class="material-icons-round">analytics</span>
+          <span class="title">Istatistikler</span>
+          <span class="material-icons-round arrow">chevron_right</span>
+        </div>
+      </div>
+
+      <!-- Cikis -->
+      <button class="btn btn-danger btn-block" style="margin-top:24px" onclick="doLogout()">
+        <span class="material-icons-round">logout</span> Cikis Yap
+      </button>
+    </div>
+  `;
+}
+
+window.toggleSettingsGroup = function(header) {
+  header.classList.toggle('open');
+  const body = header.nextElementSibling;
+  if (body) body.classList.toggle('open');
+};
+
+window.settingSlider = function(type, val) {
+  if (type === 'target') {
+    const el = $('#setting-target-val');
+    if (el) el.textContent = parseFloat(val).toFixed(1).replace('.', ',') + '\u00B0';
+  }
+};
+
+window.saveHeatingSettings = async function() {
+  const target = parseFloat($('#setting-target-val')?.textContent?.replace(',', '.') || S.heatingConfig.targetTemp);
+  const hysteresis = parseFloat($('#setting-hysteresis')?.value || 0.5);
+  const minCycle = parseInt($('#setting-mincycle')?.value || 3);
+  const strategy = $('#setting-strategy')?.value || 'weighted_avg';
+
+  // Get the slider value for target since text might have formatting
+  const slider = $('input[type=range]');
+  const targetFromSlider = slider ? parseFloat(slider.value) : target;
+
+  const body = {
+    target_temp: targetFromSlider,
+    hysteresis: hysteresis,
+    min_cycle_min: minCycle,
+    strategy: strategy,
+  };
+  const res = await apiPut('/config/heating', body);
+  if (res.success) {
+    S.heatingConfig.targetTemp = targetFromSlider;
+    S.heatingConfig.hysteresis = hysteresis;
+    S.heatingConfig.minCycleMin = minCycle;
+    S.heatingConfig.strategy = strategy;
+    showSnack('Isitma ayarlari kaydedildi');
+  } else {
+    showSnack(res.message || 'Kaydetme basarisiz');
+  }
+};
+
+window.saveHomeSettings = async function() {
+  const area = parseFloat($('#setting-area')?.value || 120);
+  const power = parseFloat($('#setting-power')?.value || 24);
+  const gas = parseFloat($('#setting-gas')?.value || 7.5);
+  const body = { floor_area_m2: area, boiler_power_kw: power, gas_price_per_m3: gas };
+  const res = await apiPut('/config/heating', body);
+  if (res.success) {
+    S.heatingConfig.floorAreaM2 = area;
+    S.heatingConfig.boilerPowerKw = power;
+    S.heatingConfig.gasPricePerM3 = gas;
+    showSnack('Ev bilgileri kaydedildi');
+  } else {
+    showSnack(res.message || 'Kaydetme basarisiz');
+  }
+};
+
+window.saveFlowTemp = async function() {
+  const val = parseInt($('#setting-flow-temp')?.value || 60);
+  const res = await apiPut('/energy/flow-temp', { flow_temp: val });
+  if (res.success) {
+    S.heatingConfig.flow_temp = val;
+    S.heatingConfig.flowTemp = val;
+    showSnack('Su sicakligi ' + val + '°C olarak kaydedildi');
+    if (res.data && res.data.comparison) {
+      const c = res.data.comparison;
+      const info = $('#flow-temp-info');
+      if (info) info.innerHTML = `Verim: %${c.efficiency_pct.toFixed(0)} | Gaz: ${c.gas_rate_m3h.toFixed(2)} m³/saat | ${c.is_condensing ? '<span style="color:var(--success)">Yogusmali ✓</span>' : '<span style="color:var(--primary)">Standart</span>'}`;
+    }
+  } else {
+    showSnack(res.message || 'Kaydetme basarisiz');
+  }
+};
+
+window.searchLocation = async function() {
+  const q = $('#location-search')?.value?.trim();
+  if (!q || q.length < 2) { showSnack('En az 2 karakter girin'); return; }
+  const el = $('#location-results');
+  if (el) el.innerHTML = '<div style="color:var(--on-surface-var);font-size:13px">Araniyor...</div>';
+  const res = await apiGet('/weather/search-location?q=' + encodeURIComponent(q) + '&country=TR');
+  if (res.success && res.data && res.data.length > 0) {
+    el.innerHTML = res.data.map(loc => `
+      <div class="location-result" onclick="setLocation(${loc.latitude},${loc.longitude},'${loc.city.replace(/'/g,"\\'")}','${(loc.district||'').replace(/'/g,"\\'")}','${(loc.country||'TR').replace(/'/g,"\\'")}')">
+        <span class="material-icons-round" style="font-size:18px;color:var(--primary)">place</span>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:500">${loc.full_address}</div>
+          <div style="font-size:11px;color:var(--on-surface-var)">${loc.latitude.toFixed(3)}°N, ${loc.longitude.toFixed(3)}°E${loc.population ? ' · Nufus: ' + loc.population.toLocaleString('tr') : ''}</div>
+        </div>
+        <span class="material-icons-round" style="font-size:16px;color:var(--on-surface-var)">chevron_right</span>
+      </div>
+    `).join('');
+  } else {
+    el.innerHTML = '<div style="color:var(--on-surface-var);font-size:13px">Sonuc bulunamadi. Farkli bir arama deneyin.</div>';
+  }
+};
+
+window.setLocation = async function(lat, lon, city, district, country) {
+  const res = await apiPut('/weather/location', { latitude: lat, longitude: lon, city, district, country: country || 'TR' });
+  if (res.success) {
+    showSnack('Konum ayarlandi: ' + (res.data.location || city));
+    $('#location-results').innerHTML = '';
+    $('#location-search').value = '';
+    loadCurrentLocation();
+    // Weather cache temizle
+    S.weather = null;
+  } else {
+    showSnack(res.message || 'Konum kaydedilemedi');
+  }
+};
+
+async function loadCurrentLocation() {
+  const res = await apiGet('/weather/location');
+  const el = $('#current-location');
+  if (el && res.success && res.data) {
+    el.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--surface2);border-radius:var(--radius-sm)">
+        <span class="material-icons-round" style="color:var(--success)">my_location</span>
+        <div>
+          <div style="font-size:14px;font-weight:500">${res.data.city || 'Ayarlanmamis'}</div>
+          <div style="font-size:11px;color:var(--on-surface-var)">${res.data.latitude?.toFixed(3) || '--'}°N, ${res.data.longitude?.toFixed(3) || '--'}°E</div>
+        </div>
+      </div>
+    `;
+  }
+}
+
+const ROOM_ICONS = [
+  { key: 'sofa', icon: 'weekend', label: 'Salon' },
+  { key: 'bed', icon: 'bed', label: 'Yatak Odasi' },
+  { key: 'kitchen', icon: 'countertops', label: 'Mutfak' },
+  { key: 'bath', icon: 'bathtub', label: 'Banyo' },
+  { key: 'child', icon: 'child_care', label: 'Cocuk Odasi' },
+  { key: 'office', icon: 'desktop_windows', label: 'Calisma' },
+  { key: 'dining', icon: 'dining', label: 'Yemek Odasi' },
+  { key: 'hall', icon: 'door_front', label: 'Antre/Koridor' },
+  { key: 'balcony', icon: 'balcony', label: 'Balkon' },
+  { key: 'garage', icon: 'garage', label: 'Garaj' },
+  { key: 'laundry', icon: 'local_laundry_service', label: 'Camasir' },
+  { key: 'room', icon: 'meeting_room', label: 'Genel Oda' },
+];
+
+function renderIconPicker(selectedKey, inputId) {
+  return `
+    <label>Ikon</label>
+    <input type="hidden" id="${inputId}" value="${selectedKey || 'room'}">
+    <div class="icon-picker-grid">
+      ${ROOM_ICONS.map(ri => `
+        <div class="icon-pick ${ri.key === (selectedKey || 'room') ? 'selected' : ''}"
+             onclick="pickRoomIcon('${inputId}','${ri.key}',this)" title="${ri.label}">
+          <span class="material-icons-round">${ri.icon}</span>
+          <span class="icon-pick-label">${ri.label}</span>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+window.pickRoomIcon = function(inputId, key, el) {
+  document.querySelectorAll('.icon-pick').forEach(e => e.classList.remove('selected'));
+  el.classList.add('selected');
+  const input = $('#' + inputId);
+  if (input) input.value = key;
+};
+
+window.addRoom = function() {
+  showModal('Yeni Oda Ekle', `
+    <div class="field">
+      <label>Oda Adi</label>
+      <input type="text" id="modal-new-room-name" placeholder="ornegin: Salon">
+    </div>
+    <div class="field">
+      ${renderIconPicker('room', 'modal-new-room-icon')}
+    </div>
+    <div class="field">
+      <label>Agirlik (0-10)</label>
+      <input type="number" id="modal-new-room-weight" value="5" min="0" max="10">
+    </div>
+  `, async () => {
+    const name = $('#modal-new-room-name').value.trim();
+    const icon = $('#modal-new-room-icon').value.trim();
+    const weight = parseFloat($('#modal-new-room-weight').value || 5);
+    if (!name) return;
+    const res = await apiPost('/rooms', { name, icon, weight });
+    if (res.success) {
+      if (res.data) S.rooms.push(res.data);
+      else {
+        const roomsRes = await apiGet('/rooms');
+        if (roomsRes.success) S.rooms = roomsRes.data;
+      }
+      showSnack('Oda eklendi');
+      render();
+    } else {
+      showSnack(res.message || 'Hata olustu');
+    }
+  });
+};
+
+window.deleteRoom = async function(id) {
+  if (!confirm('Bu oda silinsin mi?')) return;
+  const res = await apiDelete('/rooms/' + id);
+  if (res.success) {
+    S.rooms = S.rooms.filter(r => r.id !== id);
+    showSnack('Oda silindi');
+    render();
+  } else {
+    showSnack(res.message || 'Silme basarisiz');
+  }
+};
+
+window.doLogout = async function() {
+  await apiPost('/auth/logout');
+  S.user = null;
+  if (ws) { ws.close(); ws = null; }
+  navigate('login');
+};
+
+window.changePassword = function() {
+  showModal('Sifre Degistir', `
+    <div class="field">
+      <label>Mevcut Sifre</label>
+      <input type="password" id="modal-old-pass" placeholder="Mevcut sifreniz">
+    </div>
+    <div class="field">
+      <label>Yeni Sifre</label>
+      <input type="password" id="modal-new-pass" placeholder="En az 6 karakter">
+    </div>
+    <div class="field">
+      <label>Yeni Sifre (Tekrar)</label>
+      <input type="password" id="modal-new-pass2" placeholder="Ayni sifreyi tekrar girin">
+    </div>
+  `, async () => {
+    const oldPass = $('#modal-old-pass').value;
+    const newPass = $('#modal-new-pass').value;
+    const newPass2 = $('#modal-new-pass2').value;
+    if (!oldPass || !newPass) { showSnack('Tum alanlari doldurun'); return; }
+    if (newPass.length < 6) { showSnack('Sifre en az 6 karakter olmali'); return; }
+    if (newPass !== newPass2) { showSnack('Sifreler eslesmedi'); return; }
+    const res = await apiPost('/auth/change-password', { old_password: oldPass, new_password: newPass });
+    if (res.success) {
+      showSnack('Sifre basariyla degistirildi');
+    } else {
+      showSnack(res.message || res.error || 'Sifre degistirilemedi');
+    }
+  });
+};
+
+/* ===== ANALYTICS VIEW ===== */
+function renderAnalytics() {
+  return `
+    <div class="fade-in">
+      <div class="section-title">Enerji & Maliyet</div>
+      <div id="analytics-summary" class="stat-cards">
+        <div class="stat-card"><div class="val">--</div><div class="lbl">Yukleniyor...</div></div>
+      </div>
+
+      <div class="card" id="analytics-efficiency" style="margin-top:12px">
+        <div class="card-title"><span class="material-icons-round">speed</span> Verimlilik Analizi</div>
+        <div style="color:var(--on-surface-var);font-size:13px">Yukleniyor...</div>
+      </div>
+
+      <div class="card" id="analytics-flow-comparison" style="margin-top:12px">
+        <div class="card-title"><span class="material-icons-round">compare_arrows</span> Akis Sicakligi Karsilastirmasi</div>
+        <div style="color:var(--on-surface-var);font-size:13px">Yukleniyor...</div>
+      </div>
+
+      <div class="chart-card" style="margin-top:12px">
+        <div class="card-title"><span class="material-icons-round">bar_chart</span> Gunluk Calisma (Son 7 Gun)</div>
+        <canvas id="bar-chart-canvas" height="200"></canvas>
+      </div>
+
+      <div id="analytics-alerts" style="margin-top:12px"></div>
+
+      <div style="margin-top:16px">
+        <button class="btn btn-outline btn-block" onclick="navigate('dashboard')">
+          <span class="material-icons-round">arrow_back</span> Ana Sayfaya Don
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+async function loadAnalyticsEnergy() {
+  const [energyRes, effRes, alertRes] = await Promise.all([
+    apiGet('/energy/current'),
+    apiGet('/energy/efficiency'),
+    apiGet('/energy/alerts'),
+  ]);
+
+  // Summary cards
+  if (energyRes.success) {
+    const t = energyRes.data.today || {};
+    const flowTemp = energyRes.data.flow_temp || 60;
+    const gasPrice = energyRes.data.gas_price_per_m3 || 11.91;
+    const el = $('#analytics-summary');
+    if (el) el.innerHTML = `
+      <div class="stat-card">
+        <span class="material-icons-round" style="color:#FF9800;font-size:20px">schedule</span>
+        <div class="val">${fmtMinutes(t.runtime_minutes || 0)}</div>
+        <div class="lbl">Bugun Calisma</div>
+      </div>
+      <div class="stat-card">
+        <span class="material-icons-round" style="color:#4CAF50;font-size:20px">local_gas_station</span>
+        <div class="val">${(t.gas_m3 || 0).toFixed(2)}</div>
+        <div class="lbl">m³ Gaz</div>
+      </div>
+      <div class="stat-card">
+        <span class="material-icons-round" style="color:#2196F3;font-size:20px">bolt</span>
+        <div class="val">${(t.thermal_kwh || 0).toFixed(1)}</div>
+        <div class="lbl">kWh Isil</div>
+      </div>
+      <div class="stat-card">
+        <span class="material-icons-round" style="color:var(--primary);font-size:20px">payments</span>
+        <div class="val">${(t.cost_tl || 0).toFixed(1)}</div>
+        <div class="lbl">₺ Maliyet</div>
+      </div>
+    `;
+  }
+
+  // Efficiency analysis
+  if (effRes.success) {
+    const d = effRes.data;
+    const cur = d.current || {};
+    const opt = d.optimal || {};
+    const table = d.efficiency_table || [];
+    const el = $('#analytics-efficiency');
+    if (el) el.innerHTML = `
+      <div class="card-title"><span class="material-icons-round">speed</span> Verimlilik</div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:12px">
+        <div style="text-align:center;flex:1">
+          <div style="font-size:28px;font-weight:500;color:${cur.is_condensing ? 'var(--success)' : 'var(--primary)'}">%${(cur.efficiency_pct||0).toFixed(0)}</div>
+          <div style="font-size:11px;color:var(--on-surface-var)">Mevcut (${cur.flow_temp||60}°C)</div>
+        </div>
+        <div style="display:flex;align-items:center"><span class="material-icons-round" style="color:var(--on-surface-var)">arrow_forward</span></div>
+        <div style="text-align:center;flex:1">
+          <div style="font-size:28px;font-weight:500;color:var(--success)">%${(opt.efficiency_pct||0).toFixed(0)}</div>
+          <div style="font-size:11px;color:var(--on-surface-var)">Optimal (${opt.flow_temp||50}°C)</div>
+        </div>
+      </div>
+      ${d.potential_savings_pct > 0 ? `<div class="saving-tip"><span class="material-icons-round">eco</span><span>${d.recommendation || ''}</span></div>` : ''}
+      <div style="font-size:12px;font-weight:500;margin:12px 0 8px;color:var(--on-surface-var)">Kombi: ${d.boiler?.brand || 'ECA'} ${d.boiler?.model || ''} (${d.boiler?.max_kw || 30} kW)</div>
+    `;
+
+    // Flow temp comparison table
+    const tEl = $('#analytics-flow-comparison');
+    if (tEl && table.length > 0) {
+      tEl.innerHTML = `
+        <div class="card-title"><span class="material-icons-round">compare_arrows</span> Su Sicakligi → Gaz Tuketimi</div>
+        <div style="overflow-x:auto">
+          <table style="width:100%;font-size:12px;border-collapse:collapse">
+            <tr style="color:var(--on-surface-var);border-bottom:1px solid var(--outline-var)">
+              <th style="text-align:left;padding:6px 4px">Su °C</th>
+              <th style="text-align:center;padding:6px 4px">Verim</th>
+              <th style="text-align:center;padding:6px 4px">m³/saat</th>
+              <th style="text-align:center;padding:6px 4px">Yogusmali</th>
+            </tr>
+            ${table.map(r => `
+              <tr style="border-bottom:1px solid var(--outline-var);${r.is_current ? 'background:var(--primary-dim);font-weight:500' : ''}">
+                <td style="padding:6px 4px">${r.flow_temp}°C ${r.is_current ? '←' : ''}</td>
+                <td style="text-align:center;padding:6px 4px;color:${r.is_condensing ? 'var(--success)' : 'var(--on-surface-var)'}">%${r.efficiency_pct.toFixed(0)}</td>
+                <td style="text-align:center;padding:6px 4px">${r.gas_rate_m3h.toFixed(2)}</td>
+                <td style="text-align:center;padding:6px 4px">${r.is_condensing ? '✅' : '❌'}</td>
+              </tr>
+            `).join('')}
+          </table>
+        </div>
+      `;
+    }
+  }
+
+  // Alerts
+  if (alertRes.success) {
+    renderAlertCards(alertRes.data);
+    const el = $('#analytics-alerts');
+    if (el && alertRes.data.alerts && alertRes.data.alerts.length > 0) {
+      const iconMap = { leaf:'eco', flame:'local_fire_department', droplet:'water_drop', thermometer:'thermostat', warning:'warning', clock:'schedule', snow:'ac_unit', sun:'wb_sunny', wind:'air', bolt:'bolt', info:'info', check:'check_circle' };
+      const colorMap = { critical:'var(--error)', warning:'#FF9800', info:'var(--info)', success:'var(--success)' };
+      el.innerHTML = '<div class="card-title" style="margin-bottom:8px"><span class="material-icons-round">notifications_active</span> Uyarilar</div>' +
+        alertRes.data.alerts.map(a => `
+          <div class="alert-card" style="border-left:3px solid ${colorMap[a.severity] || 'var(--outline)'}">
+            <span class="material-icons-round" style="color:${colorMap[a.severity] || 'var(--on-surface-var)'};font-size:20px">${iconMap[a.icon] || 'info'}</span>
+            <div class="alert-content"><div class="alert-title">${a.title}</div><div class="alert-msg">${a.message}</div></div>
+          </div>
+        `).join('');
+    }
+  }
+}
+
+async function drawBarChart() {
+  const canvas = $('#bar-chart-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth;
+  const h = 200;
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
+  ctx.scale(dpr, dpr);
+
+  // Gunluk calisma verisini API'den cek (varsa), yoksa mock
+  const today = new Date();
+  const days = [];
+  const values = [];
+  let dailyData = null;
+  try {
+    const dRes = await apiGet('/energy/daily?days=7');
+    if (dRes.success && dRes.data && dRes.data.length > 0) dailyData = dRes.data;
+  } catch(e) {}
+
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    const dateStr = d.toISOString().split('T')[0];
+    days.push(d.toLocaleDateString('tr-TR', { weekday: 'short' }));
+    if (dailyData) {
+      const dayEntry = dailyData.find(x => x.date === dateStr);
+      values.push(dayEntry ? (dayEntry.runtime_minutes || 0) / 60 : 0);
+    } else if (i === 0) {
+      values.push((S.boilerStatus.runtimeToday || 0) / 60);
+    } else {
+      values.push(0);
+    }
+  }
+
+  const maxVal = Math.max(...values, 1);
+  const padX = 40, padY = 16, padBottom = 30;
+  const plotW = w - padX - 16;
+  const plotH = h - padY - padBottom;
+  const barW = Math.min(plotW / days.length * 0.6, 36);
+  const gap = plotW / days.length;
+
+  // Grid
+  ctx.strokeStyle = 'rgba(147,143,153,0.15)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = padY + (i / 4) * plotH;
+    ctx.beginPath();
+    ctx.moveTo(padX, y);
+    ctx.lineTo(padX + plotW, y);
+    ctx.stroke();
+    ctx.fillStyle = '#938F99';
+    ctx.font = '10px Roboto';
+    ctx.textAlign = 'right';
+    ctx.fillText((maxVal - (i / 4) * maxVal).toFixed(0) + 's', padX - 6, y + 4);
+  }
+
+  // Bars
+  values.forEach((v, i) => {
+    const barH = (v / maxVal) * plotH;
+    const x = padX + i * gap + (gap - barW) / 2;
+    const y = padY + plotH - barH;
+
+    // Bar gradient
+    const grad = ctx.createLinearGradient(0, y, 0, padY + plotH);
+    grad.addColorStop(0, '#FFB68C');
+    grad.addColorStop(1, 'rgba(255,182,140,0.3)');
+
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    const radius = 4;
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + barW - radius, y);
+    ctx.quadraticCurveTo(x + barW, y, x + barW, y + radius);
+    ctx.lineTo(x + barW, padY + plotH);
+    ctx.lineTo(x, padY + plotH);
+    ctx.lineTo(x, y + radius);
+    ctx.quadraticCurveTo(x, y, x + radius, y);
+    ctx.fill();
+
+    // Value on top
+    if (v > 0) {
+      ctx.fillStyle = '#FFB68C';
+      ctx.font = '10px Roboto';
+      ctx.textAlign = 'center';
+      ctx.fillText(v.toFixed(1).replace('.', ','), x + barW / 2, y - 6);
+    }
+
+    // Day label
+    ctx.fillStyle = '#938F99';
+    ctx.font = '11px Roboto';
+    ctx.textAlign = 'center';
+    ctx.fillText(days[i], x + barW / 2, h - 8);
+  });
+}
+
+/* ===== MODAL ===== */
+function showModal(title, bodyHTML, onSave) {
+  const existing = $('#modal-overlay');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'modal-overlay';
+  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+  overlay.innerHTML = `
+    <div class="modal">
+      <h3>${title}</h3>
+      ${bodyHTML}
+      <div class="actions">
+        <button class="btn btn-outline" onclick="$('#modal-overlay').remove()">Iptal</button>
+        <button class="btn btn-primary" id="modal-save-btn">Kaydet</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  $('#modal-save-btn').onclick = () => {
+    onSave();
+    overlay.remove();
+  };
+  // Focus first input
+  const firstInput = overlay.querySelector('input');
+  if (firstInput) setTimeout(() => firstInput.focus(), 100);
+}
+
+/* ===== UTILITIES ===== */
+function esc(s) {
+  if (!s) return '';
+  const div = document.createElement('div');
+  div.textContent = s;
+  return div.innerHTML;
+}
+
+/* ===== INIT ===== */
+async function init() {
+  try {
+    // Check if already logged in
+    const meRes = await apiGet('/auth/me');
+    if (meRes.success && meRes.data) {
+      S.user = meRes.data;
+      await loadDashboardData();
+      connectWS();
+      const route = getRoute();
+      if (route === 'login') {
+        navigate('dashboard');
+      } else {
+        S.currentView = route;
+        render();
+      }
+      // Start weather refresh interval
+      setInterval(refreshWeather, 15 * 60 * 1000);
+    } else {
+      S.currentView = 'login';
+      render();
+    }
+  } catch (e) {
+    console.error('Init error:', e);
+    S.currentView = 'login';
+    render();
+  }
+}
+
+// Expose navigate globally
+window.navigate = navigate;
+
+init();
+</script>
+</body>
+</html>

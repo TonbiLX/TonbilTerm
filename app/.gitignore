@@ -1,0 +1,17 @@
+# Build
+app/build/
+build/
+.gradle/
+
+# IDE
+.idea/
+*.iml
+local.properties
+
+# Keystore (add manually if needed)
+*.keystore
+keystore.properties
+
+# OS
+.DS_Store
+Thumbs.db

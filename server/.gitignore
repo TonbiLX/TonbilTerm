@@ -1,0 +1,21 @@
+# Environment
+.env
+*.env.local
+
+# Backups
+backups/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Docker volumes (local bind mounts)
+data/
+
+# IDE
+.vscode/
+.idea/

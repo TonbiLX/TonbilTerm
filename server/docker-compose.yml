@@ -1,0 +1,214 @@
+version: "3.9"
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  # ---------------------------------------------------------------------------
+  # MQTT Broker - ESP32 cihazlarin baglanti noktasi
+  # ---------------------------------------------------------------------------
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: tonbil-mosquitto
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "/mosquitto/config/docker-entrypoint.sh"]
+    ports:
+      - "1883:1883"       # MQTT TCP (ESP32 cihazlar)
+      # 9001 sadece internal (nginx uzerinden disari acilir)
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./mosquitto/docker-entrypoint.sh:/mosquitto/config/docker-entrypoint.sh:ro
+      - ./mosquitto/passwd:/mosquitto/config/passwd.seed:ro
+      - ./mosquitto/acl:/mosquitto/config/acl.seed:ro
+      - mqtt-dynamic:/mosquitto/dynamic
+      - mosquitto-data:/mosquitto/data
+      - mosquitto-log:/mosquitto/log
+    networks:
+      - tonbil-net
+    healthcheck:
+      test: ["CMD-SHELL", "mosquitto_sub -h localhost -p 1883 -u $$MQTT_HEALTH_USER -P $$MQTT_HEALTH_PASS -t '$$SYS/broker/uptime' -C 1 -W 3 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    environment:
+      MQTT_HEALTH_USER: api_server
+      MQTT_HEALTH_PASS: ${MQTT_API_PASSWORD:-tonbil_api_2024}
+    logging: *default-logging
+
+  # ---------------------------------------------------------------------------
+  # PostgreSQL - Kullanicilar, cihazlar, konfigürasyon
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: tonbil-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-tonbil}
+      POSTGRES_USER: ${POSTGRES_USER:-tonbil}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tonbil_secret_2024}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    networks:
+      - tonbil-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-tonbil} -d ${POSTGRES_DB:-tonbil}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    logging: *default-logging
+
+  # ---------------------------------------------------------------------------
+  # InfluxDB - Sensor verisi (zaman serisi)
+  # ---------------------------------------------------------------------------
+  influxdb:
+    image: influxdb:2.7-alpine
+    container_name: tonbil-influxdb
+    restart: unless-stopped
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: ${INFLUXDB_ADMIN_USER:-tonbil}
+      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUXDB_ADMIN_PASSWORD:-tonbil_influx_2024}
+      DOCKER_INFLUXDB_INIT_ORG: ${INFLUXDB_ORG:-tonbil}
+      DOCKER_INFLUXDB_INIT_BUCKET: ${INFLUXDB_BUCKET:-sensors}
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUXDB_ADMIN_TOKEN:-tonbil-influx-admin-token-change-me}
+      DOCKER_INFLUXDB_INIT_RETENTION: ${INFLUXDB_RETENTION:-90d}
+    volumes:
+      - influxdb-data:/var/lib/influxdb2
+      - influxdb-config:/etc/influxdb2
+    networks:
+      - tonbil-net
+    healthcheck:
+      test: ["CMD", "influx", "ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    logging: *default-logging
+
+  # ---------------------------------------------------------------------------
+  # Redis - Cache (opsiyonel, devre disi birakilabilir)
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: tonbil-redis
+    restart: unless-stopped
+    command: redis-server --maxmemory 64mb --maxmemory-policy allkeys-lru --appendonly no
+    volumes:
+      - redis-data:/data
+    networks:
+      - tonbil-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    logging: *default-logging
+
+  # ---------------------------------------------------------------------------
+  # API - FastAPI uygulama sunucusu
+  # ---------------------------------------------------------------------------
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: tonbil-api
+    restart: unless-stopped
+    environment:
+      # PostgreSQL
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-tonbil}:${POSTGRES_PASSWORD:-tonbil_secret_2024}@postgres:5432/${POSTGRES_DB:-tonbil}
+      # InfluxDB
+      INFLUXDB_URL: http://influxdb:8086
+      INFLUXDB_TOKEN: ${INFLUXDB_ADMIN_TOKEN:-tonbil-influx-admin-token-change-me}
+      INFLUXDB_ORG: ${INFLUXDB_ORG:-tonbil}
+      INFLUXDB_BUCKET: ${INFLUXDB_BUCKET:-sensors}
+      # MQTT
+      MQTT_HOST: mosquitto
+      MQTT_PORT: 1883
+      MQTT_USER: api_server
+      MQTT_PASSWORD: ${MQTT_API_PASSWORD:-tonbil_api_2024}
+      # Redis
+      REDIS_URL: redis://redis:6379/0
+      REDIS_ENABLED: ${REDIS_ENABLED:-true}
+      # Auth
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production-use-openssl-rand-hex-32}
+      JWT_ALGORITHM: HS256
+      JWT_EXPIRE_HOURS: ${JWT_EXPIRE_HOURS:-24}
+      # Hava durumu
+      WEATHER_LAT: ${WEATHER_LAT:-39.93}
+      WEATHER_LON: ${WEATHER_LON:-32.86}
+      WEATHER_CITY: ${WEATHER_CITY:-Ankara}
+      # CORS
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:8091,http://localhost,http://192.168.1.9:8091,http://temp.tonbilx.com,http://192.168.1.9}
+      # MQTT external (provisioning icin ESP32'ye dondurulur)
+      MQTT_EXTERNAL_HOST: ${MQTT_EXTERNAL_HOST:-192.168.1.9}
+      MQTT_EXTERNAL_PORT: ${MQTT_EXTERNAL_PORT:-1883}
+      # MQTT credential file paths (shared volume)
+      MQTT_PASSWD_FILE: /mosquitto/dynamic/passwd
+      MQTT_ACL_FILE: /mosquitto/dynamic/acl
+    volumes:
+      - mqtt-dynamic:/mosquitto/dynamic
+    depends_on:
+      postgres:
+        condition: service_healthy
+      influxdb:
+        condition: service_healthy
+      mosquitto:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - tonbil-net
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    logging: *default-logging
+
+  # ---------------------------------------------------------------------------
+  # Nginx - Reverse proxy + SPA serving
+  # ---------------------------------------------------------------------------
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: tonbil-nginx
+    restart: unless-stopped
+    ports:
+      - "${NGINX_PORT:-8091}:80"
+      - "8200:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - static-files:/usr/share/nginx/html:ro
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - tonbil-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO /dev/null http://127.0.0.1:80/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    logging: *default-logging
+
+volumes:
+  mqtt-dynamic:
+  mosquitto-data:
+  mosquitto-log:
+  postgres-data:
+  influxdb-data:
+  influxdb-config:
+  redis-data:
+  static-files:
+
+networks:
+  tonbil-net:
+    driver: bridge

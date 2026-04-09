@@ -1,0 +1,32 @@
+# ===========================================================================
+# Tonbil Termostat - Mosquitto ACL (Access Control List)
+# ===========================================================================
+
+# --- API Sunucusu: tum tonbil topic'lerine tam erisim ---
+user api_server
+topic readwrite tonbil/#
+
+# --- Web Client: sadece okuma (telemetri ve durum) ---
+user web_client
+topic read tonbil/+/telemetry
+topic read tonbil/+/status
+topic read tonbil/system/#
+
+# --- Varsayilan Cihaz: kendi topic'lerine yazma, komut/config okuma ---
+user device_default
+topic write tonbil/devices/+/telemetry
+topic write tonbil/devices/+/status
+topic read tonbil/devices/+/command
+topic read tonbil/devices/+/config
+topic read tonbil/system/time
+
+# --- Pattern kurallari: cihaza ozel erisim ---
+# %u = baglanan kullanicinin username'i
+# Her cihaz sadece kendi topic'ine yazabilir
+pattern write tonbil/devices/%u/telemetry
+pattern write tonbil/devices/%u/status
+pattern read tonbil/devices/%u/command
+pattern read tonbil/devices/%u/config
+
+# --- Sistem topic'leri (herkes okuyabilir) ---
+pattern read $SYS/#

@@ -1,0 +1,46 @@
+version: "3.9"
+
+# Gelistirme ortami override dosyasi
+# Kullanim: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+services:
+  postgres:
+    ports:
+      - "5432:5432"    # Host'tan debug erisimi
+
+  influxdb:
+    ports:
+      - "8086:8086"    # Host'tan InfluxDB UI erisimi
+
+  redis:
+    ports:
+      - "6379:6379"    # Host'tan Redis CLI erisimi
+
+  mosquitto:
+    ports:
+      - "1883:1883"
+      - "9001:9001"    # WebSocket debug icin host'a ac
+
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+      target: dev        # Multi-stage dev target
+    volumes:
+      - ./api/app:/app/app:rw    # Hot reload icin source mount
+    environment:
+      API_ENV: development
+      API_DEBUG: "true"
+      LOG_LEVEL: DEBUG
+      CORS_ORIGINS: "*"
+      # Reload aktif
+      UVICORN_RELOAD: "true"
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --log-level debug
+
+  nginx:
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      # Dev'de frontend build yerine local dosya mount edilebilir
+      # - ../panel/out:/usr/share/nginx/html:ro
