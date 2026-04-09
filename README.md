@@ -294,8 +294,13 @@ cd app
 
 ### Android App
 
-<!-- Add your Android screenshots here -->
-*Screenshots coming soon*
+| Login | Dashboard | Rooms | Room Detail |
+|-------|-----------|-------|-------------|
+| <img src="screenshot/app/00-login-screen.jpg" width="200"/> | <img src="screenshot/app/01-dashboard-long.jpg" width="200"/> | <img src="screenshot/app/02-rooms-page.jpg" width="200"/> | <img src="screenshot/app/02-01-room-details.jpg" width="200"/> |
+
+| Add Room | Devices | Energy | Settings |
+|----------|---------|--------|----------|
+| <img src="screenshot/app/02-01-add-room-page.jpg" width="200"/> | <img src="screenshot/app/03-sensors-page.jpg" width="200"/> | <img src="screenshot/app/04-energy-page.jpg" width="200"/> | <img src="screenshot/app/05-settings-page.jpg" width="200"/> |
 
 ## Heating Algorithm
 
@@ -550,6 +555,16 @@ cd app
 <p align="center">
   <img src="screenshot/web/dashboard-desktop.png" width="800" alt="Masaustu Dashboard"/>
 </p>
+
+### Android Uygulama
+
+| Giris | Dashboard | Odalar | Oda Detay |
+|-------|-----------|--------|-----------|
+| <img src="screenshot/app/00-login-screen.jpg" width="200"/> | <img src="screenshot/app/01-dashboard-long.jpg" width="200"/> | <img src="screenshot/app/02-rooms-page.jpg" width="200"/> | <img src="screenshot/app/02-01-room-details.jpg" width="200"/> |
+
+| Oda Ekle | Cihazlar | Enerji | Ayarlar |
+|----------|---------|--------|---------|
+| <img src="screenshot/app/02-01-add-room-page.jpg" width="200"/> | <img src="screenshot/app/03-sensors-page.jpg" width="200"/> | <img src="screenshot/app/04-energy-page.jpg" width="200"/> | <img src="screenshot/app/05-settings-page.jpg" width="200"/> |
 
 ## Isitma Algoritmasi
 
