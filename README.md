@@ -220,8 +220,8 @@ Each firmware variant includes:
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/TonbiLX/TonbilTermostat.git
-cd TonbilTermostat
+git clone https://github.com/TonbiLX/TonbilTerm.git
+cd TonbilTerm
 ```
 
 ### 2. Server Setup
@@ -493,8 +493,8 @@ Her firmware cesidi sunlari icerir:
 ### 1. Repoyu Klonlayin
 
 ```bash
-git clone https://github.com/TonbiLX/TonbilTermostat.git
-cd TonbilTermostat
+git clone https://github.com/TonbiLX/TonbilTerm.git
+cd TonbilTerm
 ```
 
 ### 2. Sunucu Kurulumu
